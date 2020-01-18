@@ -5,81 +5,87 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"dsss/models"
+	"github.com/iorhachovyevhen/dsss/models"
 )
 
 func TestWriteData(t *testing.T) {
 	data := models.SimpleData{Content: []byte("test")}
 
 	value, err := data.MarshalBinary()
-	assert.Nil(t, err)
+	assert.Nil(t, err, err)
 
-	err = WriteData(data.Hash(), value)
-	assert.Nil(t, err)
+	err = NewData(data.Hash(), value)
+	assert.Nil(t, err, err)
 }
 
-func TestReadData(t *testing.T) {
+func TestReadSimple(t *testing.T) {
 	expectedData := models.SimpleData{
 		Content: []byte("test"),
 	}
 
 	bytes, err := expectedData.MarshalBinary()
-	assert.Nil(t, err)
+	assert.Nil(t, err, err)
 
-	err = WriteData(expectedData.Hash(), bytes)
-	assert.Nil(t, err)
+	err = NewData(expectedData.Hash(), bytes)
+	assert.Nil(t, err, err)
 
-	reade, err := ReadData(expectedData.Hash())
-	assert.Nil(t, err)
+	value, err := ReadData(expectedData.Hash())
+	assert.Nil(t, err, err)
 
 	data := models.SimpleData{}
-	err = data.UnmarshalBinary(reade)
-	assert.Nil(t, err)
+	err = data.UnmarshalBinary(value)
+	assert.Nil(t, err, err)
 
 	assert.Equal(t, expectedData, data)
 }
 
 func TestUpdateData(t *testing.T) {
-	content := []byte("test")
-	updatedContent := []byte("test_up")
-	expectedData := models.SimpleData{Content: content}
-	data := models.SimpleData{}
+	expectedData := models.SimpleData{
+		Content: []byte("test"),
+	}
+	updatedData := models.SimpleData{
+		Content: []byte("update"),
+	}
 
 	value, err := expectedData.MarshalBinary()
-	assert.Nil(t, err)
+	assert.Nil(t, err, err)
 
-	err = WriteData(expectedData.Hash(), value)
-	assert.Nil(t, err)
+	err = NewData(expectedData.Hash(), value)
+	assert.Nil(t, err, err)
 
-	expectedData.Content = updatedContent
-	value, err = expectedData.MarshalBinary()
-	assert.Nil(t, err)
+	value, err = updatedData.MarshalBinary()
+	assert.Nil(t, err, err)
 
-	err = WriteData(expectedData.Hash(), value)
-	assert.Nil(t, err)
+	err = UpdateData(expectedData.Hash(), updatedData.Hash(), value)
+	assert.Nil(t, err, err)
 
 	value, err = ReadData(expectedData.Hash())
-	assert.Nil(t, err)
+	assert.NotNil(t, err, err)
+
+	value, err = ReadData(updatedData.Hash())
+	assert.Nil(t, err, err)
+
+	data := models.SimpleData{}
 
 	err = data.UnmarshalBinary(value)
-	assert.Nil(t, err)
+	assert.Nil(t, err, err)
 
-	assert.Equal(t, expectedData, data)
+	assert.Equal(t, updatedData, data)
 }
 
 func TestDeleteData(t *testing.T) {
 	data := models.SimpleData{Content: []byte("test")}
 
 	value, err := data.MarshalBinary()
-	assert.Nil(t, err)
+	assert.Nil(t, err, err)
 
-	err = WriteData(data.Hash(), value)
-	assert.Nil(t, err)
+	err = NewData(data.Hash(), value)
+	assert.Nil(t, err, err)
 
 	err = DeleteData(data.Hash())
-	assert.Nil(t, err)
+	assert.Nil(t, err, err)
 
 	value, err = ReadData(data.Hash())
-	assert.NotNil(t, err)
+	assert.NotNil(t, err, err)
 	assert.Nil(t, value)
 }
