@@ -1,16 +1,18 @@
 package storage
 
 import (
-	"fmt"
+	"errors"
 	"log"
 
 	"github.com/dgraph-io/badger"
 
-	"dsss/models"
+	"github.com/iorhachovyevhen/dsss/models"
 )
 
-func openDB() *badger.DB{
-	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
+func openDB() *badger.DB {
+	opt := badger.DefaultOptions("/tmp/badger")
+
+	db, err := badger.Open(opt)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -18,7 +20,7 @@ func openDB() *badger.DB{
 	return db
 }
 
-func ReadData (hash models.Hash32) ([]byte, error){
+func ReadData(hash models.Hash32) ([]byte, error) {
 	var data []byte
 
 	db := openDB()
@@ -31,55 +33,57 @@ func ReadData (hash models.Hash32) ([]byte, error){
 		}
 
 		err = item.Value(func(val []byte) error {
-			fmt.Printf("The answer is: %s\n", val)
-
 			data = append([]byte{}, val...)
 
 			return nil
 		})
-		if err != nil {
-			return err
-		}
 
-		return nil
+		return err
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.New("reading finished with error: " + err.Error())
 	}
 
 	return data, nil
 }
 
-func WriteData (hash models.Hash32, data []byte) error{
+func NewData(hash models.Hash32, data []byte) error {
 	db := openDB()
 	defer db.Close()
 
 	err := db.Update(func(txn *badger.Txn) error {
-		err := txn.Set(hash[:], data)
-		return err
+		return txn.Set(hash[:], data)
 	})
 
 	if err != nil {
-		return err
+		return errors.New("writing data finished with error: " + err.Error())
 	}
 
-	return nil
+	return err
 }
 
-func DeleteData (hash models.Hash32) error{
-	db := openDB()
-	defer db.Close()
-
-	err := db.Update(func(txn *badger.Txn) error {
-		err := txn.Delete(hash[:])
-
-		return err
-	})
-
+func UpdateData(oldHash, newHash models.Hash32, data []byte) error {
+	err := DeleteData(oldHash)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	err = NewData(newHash, data)
+
+	return err
+}
+
+func DeleteData(hash models.Hash32) error {
+	db := openDB()
+	defer db.Close()
+
+	err := db.Update(func(txn *badger.Txn) error {
+		return txn.Delete(hash[:])
+	})
+	if err != nil {
+		return errors.New("deleting finished with error: " + err.Error())
+	}
+
+	return err
 }
