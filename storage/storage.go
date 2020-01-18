@@ -20,40 +20,43 @@ func openDB() *badger.DB {
 	return db
 }
 
-func ReadData(hash models.Hash32) ([]byte, error) {
-	var data []byte
-
+func ReadData(key string, data models.Data) error {
 	db := openDB()
 	defer db.Close()
 
 	err := db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(hash[:])
+		item, err := txn.Get([]byte(key))
 		if err != nil {
 			return err
 		}
 
 		err = item.Value(func(val []byte) error {
-			data = append([]byte{}, val...)
-
-			return nil
+			return data.UnmarshalBinary(val)
 		})
 
 		return err
 	})
 
 	if err != nil {
-		return nil, errors.New("reading finished with error: " + err.Error())
+		return errors.New("reading finished with error: " + err.Error())
 	}
 
-	return data, nil
+	return nil
 }
 
-func NewData(hash models.Hash32, data []byte) error {
+func NewData(data models.Data) error {
 	db := openDB()
 	defer db.Close()
 
 	err := db.Update(func(txn *badger.Txn) error {
-		return txn.Set(hash[:], data)
+		val, err := data.MarshalBinary()
+		if err != nil {
+			return err
+		}
+
+		key := data.Hash().String()
+
+		return txn.Set([]byte(key), val)
 	})
 
 	if err != nil {
@@ -63,23 +66,21 @@ func NewData(hash models.Hash32, data []byte) error {
 	return err
 }
 
-func UpdateData(oldHash, newHash models.Hash32, data []byte) error {
-	err := DeleteData(oldHash)
+func UpdateData(oldKey string, data models.Data) error {
+	err := DeleteData(oldKey)
 	if err != nil {
 		return err
 	}
 
-	err = NewData(newHash, data)
-
-	return err
+	return NewData(data)
 }
 
-func DeleteData(hash models.Hash32) error {
+func DeleteData(key string) error {
 	db := openDB()
 	defer db.Close()
 
 	err := db.Update(func(txn *badger.Txn) error {
-		return txn.Delete(hash[:])
+		return txn.Delete([]byte(key))
 	})
 	if err != nil {
 		return errors.New("deleting finished with error: " + err.Error())

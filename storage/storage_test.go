@@ -11,29 +11,20 @@ import (
 func TestWriteData(t *testing.T) {
 	data := models.SimpleData{Content: []byte("test")}
 
-	value, err := data.MarshalBinary()
-	assert.Nil(t, err, err)
-
-	err = NewData(data.Hash(), value)
+	err := NewData(&data)
 	assert.Nil(t, err, err)
 }
 
-func TestReadSimple(t *testing.T) {
+func TestReadData(t *testing.T) {
 	expectedData := models.SimpleData{
 		Content: []byte("test"),
 	}
 
-	bytes, err := expectedData.MarshalBinary()
-	assert.Nil(t, err, err)
-
-	err = NewData(expectedData.Hash(), bytes)
-	assert.Nil(t, err, err)
-
-	value, err := ReadData(expectedData.Hash())
+	err := NewData(&expectedData)
 	assert.Nil(t, err, err)
 
 	data := models.SimpleData{}
-	err = data.UnmarshalBinary(value)
+	err = ReadData(expectedData.Hash().String(), &data)
 	assert.Nil(t, err, err)
 
 	assert.Equal(t, expectedData, data)
@@ -47,27 +38,17 @@ func TestUpdateData(t *testing.T) {
 		Content: []byte("update"),
 	}
 
-	value, err := expectedData.MarshalBinary()
+	err := NewData(&expectedData)
 	assert.Nil(t, err, err)
 
-	err = NewData(expectedData.Hash(), value)
-	assert.Nil(t, err, err)
-
-	value, err = updatedData.MarshalBinary()
-	assert.Nil(t, err, err)
-
-	err = UpdateData(expectedData.Hash(), updatedData.Hash(), value)
-	assert.Nil(t, err, err)
-
-	value, err = ReadData(expectedData.Hash())
-	assert.NotNil(t, err, err)
-
-	value, err = ReadData(updatedData.Hash())
+	err = UpdateData(expectedData.Hash().String(), &updatedData)
 	assert.Nil(t, err, err)
 
 	data := models.SimpleData{}
+	err = ReadData(expectedData.Hash().String(), &data)
+	assert.NotNil(t, err, err)
 
-	err = data.UnmarshalBinary(value)
+	err = ReadData(updatedData.Hash().String(), &data)
 	assert.Nil(t, err, err)
 
 	assert.Equal(t, updatedData, data)
@@ -76,16 +57,14 @@ func TestUpdateData(t *testing.T) {
 func TestDeleteData(t *testing.T) {
 	data := models.SimpleData{Content: []byte("test")}
 
-	value, err := data.MarshalBinary()
+	err := NewData(&data)
 	assert.Nil(t, err, err)
 
-	err = NewData(data.Hash(), value)
+	err = DeleteData(data.Hash().String())
 	assert.Nil(t, err, err)
 
-	err = DeleteData(data.Hash())
-	assert.Nil(t, err, err)
-
-	value, err = ReadData(data.Hash())
+	expectedData := models.SimpleData{}
+	err = ReadData(data.Hash().String(), &expectedData)
 	assert.NotNil(t, err, err)
-	assert.Nil(t, value)
+	assert.Equal(t, models.SimpleData{}, expectedData)
 }
