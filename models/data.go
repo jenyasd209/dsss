@@ -25,8 +25,7 @@ type Data interface {
 type Content []byte
 
 type MetaData struct {
-	Title  string `json:"title"`
-	Format string `json:"format"`
+	Title string `json:"title"`
 }
 
 type SimpleData struct {

@@ -13,8 +13,7 @@ var content = []byte("test content")
 
 var simpleData = SimpleData{
 	MetaData: MetaData{
-		Title:  "text_test",
-		Format: ".txt",
+		Title: "text_test",
 	},
 	Content: content,
 }
@@ -23,16 +22,14 @@ var jsonData = JsonData{content}
 
 var audioData = AudioData{
 	MetaData: MetaData{
-		Title:  "test_audio",
-		Format: ".mp3",
+		Title: "test_audio",
 	},
 	Content: content,
 }
 
 var videoData = VideoData{
 	MetaData: MetaData{
-		Title:  "test_video",
-		Format: ".mp4",
+		Title: "test_video",
 	},
 	Frames: []Content{
 		[]byte("frame1"),
