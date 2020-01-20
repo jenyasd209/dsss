@@ -11,9 +11,7 @@ import (
 type Hash32 [32]byte
 
 func (h Hash32) String() string {
-	bytes := h[:]
-
-	return hex.EncodeToString(bytes)
+	return hex.EncodeToString(h[:])
 }
 
 type Data interface {
