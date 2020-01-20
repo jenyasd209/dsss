@@ -9,6 +9,13 @@ import (
 	"github.com/iorhachovyevhen/dsss/models"
 )
 
+const (
+	PrefixSimple = "simple"
+	PrefixJSON   = "json"
+	PrefixAudio  = "audio"
+	PrefixVideo  = "video"
+)
+
 func openDB() *badger.DB {
 	opt := badger.DefaultOptions("/tmp/badger")
 
