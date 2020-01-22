@@ -44,10 +44,10 @@ var videoData = VideoData{
 }
 
 func TestSimpleData_ApplyContent(t *testing.T) {
-	err := simpleData.ApplyContent()
+	err := simpleData.Submit()
 	assert.Nil(t, err, err)
 
-	err = simpleData.ApplyContent()
+	err = simpleData.Submit()
 	assert.NotNil(t, err, err)
 }
 
@@ -77,7 +77,7 @@ func TestSimpleData_UnmarshalBinary(t *testing.T) {
 }
 
 func TestJsonData_Hash(t *testing.T) {
-	jsonData.ApplyContent()
+	jsonData.Submit()
 
 	expectedHash := sha256.Sum256(jsonData.Content)
 	assert.Equal(t, hex.EncodeToString(expectedHash[:]), jsonData.CachedHash().String())
@@ -104,7 +104,7 @@ func TestJsonData_UnmarshalBinary(t *testing.T) {
 }
 
 func TestAudioData_Hash(t *testing.T) {
-	audioData.ApplyContent()
+	audioData.Submit()
 
 	expectedHash := sha256.Sum256(audioData.Content)
 	assert.Equal(t, hex.EncodeToString(expectedHash[:]), audioData.CachedHash().String())
@@ -131,7 +131,7 @@ func TestAudioData_UnmarshalBinary(t *testing.T) {
 }
 
 func TestVideoData_Hash(t *testing.T) {
-	videoData.ApplyContent()
+	videoData.Submit()
 
 	expectedHash := sha256.Sum256(videoData.Frames[0])
 	assert.Equal(t, hex.EncodeToString(expectedHash[:]), videoData.CachedHash().String())
