@@ -18,7 +18,12 @@ var simpleData = SimpleData{
 	Content: content,
 }
 
-var jsonData = JsonData{content}
+var jsonData = JsonData{
+	MetaData{
+		Title: "text_json",
+	},
+	content,
+}
 
 var audioData = AudioData{
 	MetaData: MetaData{
@@ -38,12 +43,17 @@ var videoData = VideoData{
 	},
 }
 
-func TestSimpleData_Hash(t *testing.T) {
-	bytes, err := simpleData.MarshalBinary()
+func TestSimpleData_ApplyContent(t *testing.T) {
+	err := simpleData.ApplyContent()
 	assert.Nil(t, err, err)
 
-	expectedHash := sha256.Sum256(bytes)
-	assert.Equal(t, hex.EncodeToString(expectedHash[:]), simpleData.Hash().String())
+	err = simpleData.ApplyContent()
+	assert.NotNil(t, err, err)
+}
+
+func TestSimpleData_Hash(t *testing.T) {
+	expectedHash := sha256.Sum256(simpleData.Content)
+	assert.Equal(t, hex.EncodeToString(expectedHash[:]), simpleData.CachedHash().String())
 }
 
 func TestSimpleData_MarshalBinary(t *testing.T) {
@@ -67,11 +77,10 @@ func TestSimpleData_UnmarshalBinary(t *testing.T) {
 }
 
 func TestJsonData_Hash(t *testing.T) {
-	bytes, err := jsonData.MarshalBinary()
-	assert.Nil(t, err, err)
+	jsonData.ApplyContent()
 
-	expectedHash := sha256.Sum256(bytes)
-	assert.Equal(t, hex.EncodeToString(expectedHash[:]), jsonData.Hash().String())
+	expectedHash := sha256.Sum256(jsonData.Content)
+	assert.Equal(t, hex.EncodeToString(expectedHash[:]), jsonData.CachedHash().String())
 }
 
 func TestJsonData_MarshalBinary(t *testing.T) {
@@ -95,11 +104,10 @@ func TestJsonData_UnmarshalBinary(t *testing.T) {
 }
 
 func TestAudioData_Hash(t *testing.T) {
-	bytes, err := audioData.MarshalBinary()
-	assert.Nil(t, err, err)
+	audioData.ApplyContent()
 
-	expectedHash := sha256.Sum256(bytes)
-	assert.Equal(t, hex.EncodeToString(expectedHash[:]), audioData.Hash().String())
+	expectedHash := sha256.Sum256(audioData.Content)
+	assert.Equal(t, hex.EncodeToString(expectedHash[:]), audioData.CachedHash().String())
 }
 
 func TestAudioData_MarshalBinary(t *testing.T) {
@@ -123,11 +131,10 @@ func TestAudioData_UnmarshalBinary(t *testing.T) {
 }
 
 func TestVideoData_Hash(t *testing.T) {
-	bytes, err := videoData.MarshalBinary()
-	assert.Nil(t, err, err)
+	videoData.ApplyContent()
 
-	expectedHash := sha256.Sum256(bytes)
-	assert.Equal(t, hex.EncodeToString(expectedHash[:]), videoData.Hash().String())
+	expectedHash := sha256.Sum256(videoData.Frames[0])
+	assert.Equal(t, hex.EncodeToString(expectedHash[:]), videoData.CachedHash().String())
 }
 
 func TestVideoData_MarshalBinary(t *testing.T) {
