@@ -8,7 +8,7 @@ import (
 	"errors"
 )
 
-var ErrContentApplied = errors.New("content already applied")
+var ErrContentApplied = errors.New("data has been submitted")
 
 type DataType uint8
 
@@ -34,12 +34,12 @@ type Data interface {
 	encoding.BinaryUnmarshaler
 
 	CachedHash() Hash32
-	ApplyContent() error
+	Submit() error
 }
 
 type MetaData struct {
 	Title      string   `json:"title"`
-	CachedHash Hash32   `json:"cached_hash"`
+	cachedHash Hash32   `json:"cached_hash"`
 	DataType   DataType `json:"data_type"`
 }
 
@@ -50,12 +50,12 @@ type SimpleData struct {
 	Content Content `json:"content"`
 }
 
-func (s *SimpleData) ApplyContent() error {
-	if !s.MetaData.CachedHash.IsEmpty() {
+func (s *SimpleData) Submit() error {
+	if !s.MetaData.cachedHash.IsEmpty() {
 		return ErrContentApplied
 	}
 
-	s.MetaData.CachedHash = hash(s.Content)
+	s.MetaData.cachedHash = hash(s.Content)
 
 	return nil
 }
@@ -69,7 +69,7 @@ func (s *SimpleData) UnmarshalBinary(data []byte) error {
 }
 
 func (s *SimpleData) CachedHash() Hash32 {
-	return s.MetaData.CachedHash
+	return s.MetaData.cachedHash
 }
 
 type JsonData struct {
@@ -86,15 +86,15 @@ func (jsonData *JsonData) UnmarshalBinary(data []byte) error {
 }
 
 func (jsonData *JsonData) CachedHash() Hash32 {
-	return jsonData.MetaData.CachedHash
+	return jsonData.MetaData.cachedHash
 }
 
-func (jsonData *JsonData) ApplyContent() error {
-	if !jsonData.MetaData.CachedHash.IsEmpty() {
+func (jsonData *JsonData) Submit() error {
+	if !jsonData.MetaData.cachedHash.IsEmpty() {
 		return ErrContentApplied
 	}
 
-	jsonData.MetaData.CachedHash = hash(jsonData.Content)
+	jsonData.MetaData.cachedHash = hash(jsonData.Content)
 
 	return nil
 }
@@ -113,15 +113,15 @@ func (ad *AudioData) UnmarshalBinary(data []byte) error {
 }
 
 func (ad *AudioData) CachedHash() Hash32 {
-	return ad.MetaData.CachedHash
+	return ad.MetaData.cachedHash
 }
 
-func (ad *AudioData) ApplyContent() error {
-	if !ad.MetaData.CachedHash.IsEmpty() {
+func (ad *AudioData) Submit() error {
+	if !ad.MetaData.cachedHash.IsEmpty() {
 		return ErrContentApplied
 	}
 
-	ad.MetaData.CachedHash = hash(ad.Content)
+	ad.MetaData.cachedHash = hash(ad.Content)
 
 	return nil
 }
@@ -140,15 +140,15 @@ func (vd *VideoData) UnmarshalBinary(data []byte) error {
 }
 
 func (vd *VideoData) CachedHash() Hash32 {
-	return vd.MetaData.CachedHash
+	return vd.MetaData.cachedHash
 }
 
-func (vd *VideoData) ApplyContent() error {
-	if !vd.MetaData.CachedHash.IsEmpty() {
+func (vd *VideoData) Submit() error {
+	if !vd.MetaData.cachedHash.IsEmpty() {
 		return ErrContentApplied
 	}
 
-	vd.MetaData.CachedHash = hash(vd.Frames[0])
+	vd.MetaData.cachedHash = hash(vd.Frames[0])
 
 	return nil
 }
