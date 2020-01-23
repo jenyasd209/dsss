@@ -99,9 +99,9 @@ func (s *Storage) Read(key models.Hash32, data models.Data) error {
 	return nil
 }
 
-func (s *Storage) Delete(key string) error {
+func (s *Storage) Delete(key models.Hash32) error {
 	err := s.db.Update(func(txn *badger.Txn) error {
-		return txn.Delete([]byte(key))
+		return txn.Delete(key[:])
 	})
 	if err != nil {
 		return errors.New("deleting finished with error: " + err.Error())
