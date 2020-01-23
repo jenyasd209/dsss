@@ -2,37 +2,85 @@ package storage
 
 import (
 	"errors"
-	"log"
-
 	"github.com/dgraph-io/badger"
 
 	"github.com/iorhachovyevhen/dsss/models"
 )
 
+type Prefix string
+
 const (
-	PrefixSimple = "simple"
-	PrefixJSON   = "json"
-	PrefixAudio  = "audio"
-	PrefixVideo  = "video"
+	PrefixSimple Prefix = "simple"
+	PrefixJSON   Prefix = "json"
+	PrefixAudio  Prefix = "audio"
+	PrefixVideo  Prefix = "video"
 )
 
-func openDB() *badger.DB {
-	opt := badger.DefaultOptions("/tmp/badger")
+var DataTypeName = map[Prefix]models.DataType{
+	PrefixSimple: models.Simple,
+	PrefixJSON:   models.JSON,
+	PrefixAudio:  models.Audio,
+	PrefixVideo:  models.Video,
+}
 
+type DataKeeper interface {
+	Add(data models.Data) error
+	Read(key string, data models.Data) error
+	Delete(key string) error
+
+	Close() error
+}
+
+type Storage struct {
+	db      *badger.DB
+	options badger.Options
+}
+
+func NewStorageWithOptions() *badger.Options {
+	return &badger.Options{}
+}
+
+func NewDefaultStorage() *Storage {
+	return &Storage{
+		db: openDB(badger.DefaultOptions("/tmp/badger")),
+	}
+}
+
+func openDB(opt badger.Options) *badger.DB {
 	db, err := badger.Open(opt)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	return db
 }
 
-func ReadData(key string, data models.Data) error {
-	db := openDB()
-	defer db.Close()
+func (s *Storage) Add(data models.Data) error {
+	if data.CachedHash().IsEmpty() {
+		return errors.New("content not submitted")
+	}
 
-	err := db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(key))
+	err := s.db.Update(func(txn *badger.Txn) error {
+		val, err := data.MarshalBinary()
+		if err != nil {
+			return err
+		}
+
+		key := data.CachedHash()
+
+		return txn.Set(key[:], val)
+	})
+
+	if err != nil {
+		return errors.New("writing data finished with error: " + err.Error())
+	}
+
+	return err
+}
+
+func (s *Storage) Read(key models.Hash32, data models.Data) error {
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key[:])
 		if err != nil {
 			return err
 		}
@@ -51,42 +99,8 @@ func ReadData(key string, data models.Data) error {
 	return nil
 }
 
-func NewData(data models.Data) error {
-	db := openDB()
-	defer db.Close()
-
-	err := db.Update(func(txn *badger.Txn) error {
-		val, err := data.MarshalBinary()
-		if err != nil {
-			return err
-		}
-
-		key := data.Hash().String()
-
-		return txn.Set([]byte(key), val)
-	})
-
-	if err != nil {
-		return errors.New("writing data finished with error: " + err.Error())
-	}
-
-	return err
-}
-
-func UpdateData(oldKey string, data models.Data) error {
-	err := DeleteData(oldKey)
-	if err != nil {
-		return err
-	}
-
-	return NewData(data)
-}
-
-func DeleteData(key string) error {
-	db := openDB()
-	defer db.Close()
-
-	err := db.Update(func(txn *badger.Txn) error {
+func (s *Storage) Delete(key string) error {
+	err := s.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete([]byte(key))
 	})
 	if err != nil {
@@ -94,4 +108,8 @@ func DeleteData(key string) error {
 	}
 
 	return err
+}
+
+func (s *Storage) Close() error {
+	return s.db.Close()
 }
