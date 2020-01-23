@@ -36,13 +36,19 @@ type Storage struct {
 	options badger.Options
 }
 
-func NewStorageWithOptions() *Storage {
-	return &Storage{}
+func NewOptions() badger.Options {
+	return badger.DefaultOptions("")
 }
 
-func NewDefaultStorage() *Storage {
+func NewStorageWithOptions(opts badger.Options) *Storage {
 	return &Storage{
-		db: openDB(badger.DefaultOptions("/tmp/badger")),
+		db: openDB(opts),
+	}
+}
+
+func NewDefaultStorage(savePath string) *Storage {
+	return &Storage{
+		db: openDB(badger.DefaultOptions(savePath)),
 	}
 }
 
@@ -56,9 +62,11 @@ func openDB(opt badger.Options) *badger.DB {
 }
 
 func (s *Storage) Add(data models.Data) error {
-	if data.CachedHash().IsEmpty() {
-		return errors.New("content not submitted")
+	if !data.IsCorrect() {
+		return errors.New("no correct")
 	}
+
+	key := composeKey(data.CachedHash(), data.Type())
 
 	err := s.db.Update(func(txn *badger.Txn) error {
 		val, err := data.MarshalBinary()
@@ -66,21 +74,21 @@ func (s *Storage) Add(data models.Data) error {
 			return err
 		}
 
-		key := data.CachedHash()
-
-		return txn.Set(key[:], val)
+		return txn.Set(key, val)
 	})
 
 	if err != nil {
 		return errors.New("writing data finished with error: " + err.Error())
 	}
 
-	return err
+	return nil
 }
 
 func (s *Storage) Read(hash models.Hash32, data models.Data) error {
+	key := composeKey(hash, data.Type())
+
 	err := s.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(hash[:])
+		item, err := txn.Get(key)
 		if err != nil {
 			return err
 		}
@@ -99,22 +107,24 @@ func (s *Storage) Read(hash models.Hash32, data models.Data) error {
 	return nil
 }
 
-func (s *Storage) Delete(hash models.Hash32) error {
+func (s *Storage) Delete(hash models.Hash32, dataType models.DataType) error {
+	key := composeKey(hash, dataType)
+
 	err := s.db.Update(func(txn *badger.Txn) error {
-		return txn.Delete(hash[:])
+		return txn.Delete(key)
 	})
 	if err != nil {
 		return errors.New("deleting finished with error: " + err.Error())
 	}
 
-	return err
+	return nil
 }
 
 func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
-func ComposeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
+func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
 	prefix := []byte(DataPrefix[dataType])
 
 	key = append(key, prefix...)
