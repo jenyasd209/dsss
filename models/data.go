@@ -5,10 +5,7 @@ import (
 	"encoding"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 )
-
-var ErrContentApplied = errors.New("data has been submitted")
 
 type DataType uint8
 
@@ -33,7 +30,7 @@ type Data interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 
-	CachedHash() Hash32
+	ID() Hash32
 	Type() DataType
 }
 
@@ -69,7 +66,7 @@ func (sd *simpleData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, &sd)
 }
 
-func (sd *simpleData) CachedHash() Hash32 {
+func (sd *simpleData) ID() Hash32 {
 	return sd.MetaData.CachedHash
 }
 
@@ -101,7 +98,7 @@ func (jd *jsonData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, jd)
 }
 
-func (jd *jsonData) CachedHash() Hash32 {
+func (jd *jsonData) ID() Hash32 {
 	return jd.MetaData.CachedHash
 }
 
@@ -133,7 +130,7 @@ func (ad *audioData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, ad)
 }
 
-func (ad *audioData) CachedHash() Hash32 {
+func (ad *audioData) ID() Hash32 {
 	return ad.MetaData.CachedHash
 }
 
@@ -165,7 +162,7 @@ func (vd *videoData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, vd)
 }
 
-func (vd *videoData) CachedHash() Hash32 {
+func (vd *videoData) ID() Hash32 {
 	return vd.MetaData.CachedHash
 }
 
