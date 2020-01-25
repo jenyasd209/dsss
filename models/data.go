@@ -5,10 +5,7 @@ import (
 	"encoding"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 )
-
-var ErrContentApplied = errors.New("data has been submitted")
 
 type DataType uint8
 
@@ -33,8 +30,7 @@ type Data interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 
-	CachedHash() Hash32
-	IsCorrect() bool
+	ID() Hash32
 	Type() DataType
 }
 
@@ -62,10 +58,6 @@ type simpleData struct {
 	Content Content `json:"content"`
 }
 
-func (sd *simpleData) IsCorrect() bool {
-	return sd.MetaData.CachedHash == hash(sd.Content)
-}
-
 func (sd *simpleData) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(sd)
 }
@@ -74,7 +66,7 @@ func (sd *simpleData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, &sd)
 }
 
-func (sd *simpleData) CachedHash() Hash32 {
+func (sd *simpleData) ID() Hash32 {
 	return sd.MetaData.CachedHash
 }
 
@@ -106,12 +98,8 @@ func (jd *jsonData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, jd)
 }
 
-func (jd *jsonData) CachedHash() Hash32 {
+func (jd *jsonData) ID() Hash32 {
 	return jd.MetaData.CachedHash
-}
-
-func (jd *jsonData) IsCorrect() bool {
-	return jd.MetaData.CachedHash == hash(jd.Content)
 }
 
 func (jd *jsonData) Type() DataType {
@@ -142,12 +130,8 @@ func (ad *audioData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, ad)
 }
 
-func (ad *audioData) CachedHash() Hash32 {
+func (ad *audioData) ID() Hash32 {
 	return ad.MetaData.CachedHash
-}
-
-func (ad *audioData) IsCorrect() bool {
-	return ad.MetaData.CachedHash == hash(ad.Content)
 }
 
 func (ad *audioData) Type() DataType {
@@ -178,12 +162,8 @@ func (vd *videoData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, vd)
 }
 
-func (vd *videoData) CachedHash() Hash32 {
+func (vd *videoData) ID() Hash32 {
 	return vd.MetaData.CachedHash
-}
-
-func (vd *videoData) IsCorrect() bool {
-	return vd.MetaData.CachedHash == hash(vd.Frames)
 }
 
 func (vd *videoData) Type() DataType {

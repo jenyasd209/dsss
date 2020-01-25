@@ -39,19 +39,9 @@ var expectedVideoData = NewVideoData(
 	[]byte("frame1"),
 )
 
-func TestSimpleData_IsCorrect(t *testing.T) {
-	sd := *expectedSimpleData
-	sd.Content = []byte("fake")
-
-	err := sd.IsCorrect()
-	assert.NotNil(t, err, err)
-
-	assert.NotEqual(t, expectedSimpleData, sd)
-}
-
 func TestSimpleData_Hash(t *testing.T) {
 	expectedHash := sha256.Sum256(expectedSimpleData.Content)
-	assert.Equal(t, hex.EncodeToString(expectedHash[:]), expectedSimpleData.CachedHash().String())
+	assert.Equal(t, hex.EncodeToString(expectedHash[:]), expectedSimpleData.ID().String())
 }
 
 func TestSimpleData_MarshalBinary(t *testing.T) {
@@ -72,13 +62,6 @@ func TestSimpleData_UnmarshalBinary(t *testing.T) {
 	err = data.UnmarshalBinary(bytes)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedSimpleData, data)
-}
-
-func TestJsonData_Hash(t *testing.T) {
-	expectedJsonData.IsCorrect()
-
-	expectedHash := sha256.Sum256(expectedJsonData.Content)
-	assert.Equal(t, hex.EncodeToString(expectedHash[:]), expectedJsonData.CachedHash().String())
 }
 
 func TestJsonData_MarshalBinary(t *testing.T) {
@@ -103,7 +86,7 @@ func TestJsonData_UnmarshalBinary(t *testing.T) {
 
 func TestAudioData_Hash(t *testing.T) {
 	expectedHash := sha256.Sum256(expectedAudioData.Content)
-	assert.Equal(t, hex.EncodeToString(expectedHash[:]), expectedAudioData.CachedHash().String())
+	assert.Equal(t, hex.EncodeToString(expectedHash[:]), expectedAudioData.ID().String())
 }
 
 func TestAudioData_MarshalBinary(t *testing.T) {
@@ -128,7 +111,7 @@ func TestAudioData_UnmarshalBinary(t *testing.T) {
 
 func TestVideoData_Hash(t *testing.T) {
 	expectedHash := sha256.Sum256(expectedVideoData.Frames)
-	assert.Equal(t, hex.EncodeToString(expectedHash[:]), expectedVideoData.CachedHash().String())
+	assert.Equal(t, hex.EncodeToString(expectedHash[:]), expectedVideoData.ID().String())
 }
 
 func TestVideoData_MarshalBinary(t *testing.T) {
