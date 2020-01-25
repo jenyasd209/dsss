@@ -2,88 +2,128 @@ package storage
 
 import (
 	"errors"
-	"log"
-
 	"github.com/dgraph-io/badger"
 
 	"github.com/iorhachovyevhen/dsss/models"
 )
 
-func openDB() *badger.DB {
-	opt := badger.DefaultOptions("/tmp/badger")
+type Prefix string
 
+const (
+	PrefixSimple Prefix = "simple"
+	PrefixJSON   Prefix = "json"
+	PrefixAudio  Prefix = "audio"
+	PrefixVideo  Prefix = "video"
+)
+
+var DataPrefix = map[models.DataType]Prefix{
+	models.Simple: PrefixSimple,
+	models.JSON:   PrefixJSON,
+	models.Audio:  PrefixAudio,
+	models.Video:  PrefixVideo,
+}
+
+type DataKeeper interface {
+	Add(data models.Data) error
+	Read(id models.Hash32, data models.Data) error
+	Delete(id models.Hash32, dataType models.DataType) error
+
+	Close() error
+}
+
+type Storage struct {
+	db *badger.DB
+}
+
+func NewOptions() badger.Options {
+	return badger.DefaultOptions("")
+}
+
+func NewStorageWithOptions(opts badger.Options) *Storage {
+	return &Storage{
+		db: openDB(opts),
+	}
+}
+
+func NewDefaultStorage(savePath string) *Storage {
+	return &Storage{
+		db: openDB(badger.DefaultOptions(savePath)),
+	}
+}
+
+func openDB(opt badger.Options) *badger.DB {
 	db, err := badger.Open(opt)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	return db
 }
 
-func ReadData(hash models.Hash32) ([]byte, error) {
-	var data []byte
+func (s *Storage) Add(data models.Data) error {
+	key := composeKey(data.ID(), data.Type())
 
-	db := openDB()
-	defer db.Close()
-
-	err := db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(hash[:])
+	err := s.db.Update(func(txn *badger.Txn) error {
+		val, err := data.MarshalBinary()
 		if err != nil {
 			return err
 		}
 
-		err = item.Value(func(val []byte) error {
-			data = append([]byte{}, val...)
-
-			return nil
-		})
-
-		return err
-	})
-
-	if err != nil {
-		return nil, errors.New("reading finished with error: " + err.Error())
-	}
-
-	return data, nil
-}
-
-func NewData(hash models.Hash32, data []byte) error {
-	db := openDB()
-	defer db.Close()
-
-	err := db.Update(func(txn *badger.Txn) error {
-		return txn.Set(hash[:], data)
+		return txn.Set(key, val)
 	})
 
 	if err != nil {
 		return errors.New("writing data finished with error: " + err.Error())
 	}
 
-	return err
+	return nil
 }
 
-func UpdateData(oldHash, newHash models.Hash32, data []byte) error {
-	err := DeleteData(oldHash)
-	if err != nil {
+func (s *Storage) Read(id models.Hash32, data models.Data) error {
+	key := composeKey(id, data.Type())
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+
+		err = item.Value(func(val []byte) error {
+			return data.UnmarshalBinary(val)
+		})
+
 		return err
+	})
+
+	if err != nil {
+		return errors.New("reading finished with error: " + err.Error())
 	}
 
-	err = NewData(newHash, data)
-
-	return err
+	return nil
 }
 
-func DeleteData(hash models.Hash32) error {
-	db := openDB()
-	defer db.Close()
+func (s *Storage) Delete(id models.Hash32, dataType models.DataType) error {
+	key := composeKey(id, dataType)
 
-	err := db.Update(func(txn *badger.Txn) error {
-		return txn.Delete(hash[:])
+	err := s.db.Update(func(txn *badger.Txn) error {
+		return txn.Delete(key)
 	})
 	if err != nil {
 		return errors.New("deleting finished with error: " + err.Error())
 	}
 
-	return err
+	return nil
+}
+
+func (s *Storage) Close() error {
+	return s.db.Close()
+}
+
+func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
+	prefix := []byte(DataPrefix[dataType])
+
+	key = append(key, prefix...)
+	key = append(key, hash32[:]...)
+
+	return key
 }

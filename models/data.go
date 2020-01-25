@@ -5,113 +5,171 @@ import (
 	"encoding"
 	"encoding/hex"
 	"encoding/json"
-	"log"
+)
+
+type DataType uint8
+
+const (
+	Simple DataType = iota
+	JSON
+	Audio
+	Video
 )
 
 type Hash32 [32]byte
 
 func (h Hash32) String() string {
-	bytes := h[:]
+	return hex.EncodeToString(h[:])
+}
 
-	return hex.EncodeToString(bytes)
+func (h Hash32) IsEmpty() bool {
+	return h == Hash32{}
 }
 
 type Data interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
-	Hash() Hash32
+
+	ID() Hash32
+	Type() DataType
+}
+
+type MetaData struct {
+	Title      string   `json:"title"`
+	CachedHash Hash32   `json:"cached_hash"`
+	DataType   DataType `json:"data_type"`
 }
 
 type Content []byte
 
-type MetaData struct {
-	Title  string `json:"title"`
-	Format string `json:"format"`
-}
-
-type SimpleData struct {
-	MetaData `json:"meta_data"`
-	Content  `json:"content"`
-}
-
-func (s *SimpleData) MarshalBinary() (data []byte, err error) {
-	return json.Marshal(*s)
-}
-
-func (s *SimpleData) UnmarshalBinary(data []byte) error {
-	return json.Unmarshal(data, s)
-}
-
-func (s *SimpleData) Hash() Hash32 {
-	data, err := s.MarshalBinary()
-	if err != nil {
-		log.Println(err)
+func NewSimpleData(metadata MetaData, content Content) (sd *simpleData) {
+	sd = &simpleData{
+		MetaData: metadata,
+		Content:  content,
 	}
 
-	return sha256.Sum256(data)
+	sd.MetaData.CachedHash = hash(sd.Content)
+
+	return
 }
 
-type JsonData struct {
-	Content
+type simpleData struct {
+	MetaData
+	Content Content `json:"content"`
 }
 
-func (jsonData *JsonData) MarshalBinary() (data []byte, err error) {
-	return json.Marshal(*jsonData)
+func (sd *simpleData) MarshalBinary() (data []byte, err error) {
+	return json.Marshal(sd)
 }
 
-func (jsonData *JsonData) UnmarshalBinary(data []byte) error {
-	return json.Unmarshal(data, jsonData)
+func (sd *simpleData) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, &sd)
 }
 
-func (jsonData *JsonData) Hash() Hash32 {
-	data, err := jsonData.MarshalBinary()
-	if err != nil {
-		log.Println(err)
+func (sd *simpleData) ID() Hash32 {
+	return sd.MetaData.CachedHash
+}
+
+func (sd *simpleData) Type() DataType {
+	return sd.MetaData.DataType
+}
+
+func NewJSONData(metadata MetaData, content Content) (jd *jsonData) {
+	jd = &jsonData{
+		MetaData: metadata,
+		Content:  content,
 	}
 
-	return sha256.Sum256(data)
+	jd.MetaData.CachedHash = hash(jd.Content)
+
+	return
 }
 
-type AudioData struct {
-	MetaData `json:"meta_data"`
-	Content  `json:"content"`
+type jsonData struct {
+	MetaData
+	Content Content `json:"body"`
 }
 
-func (ad *AudioData) MarshalBinary() (data []byte, err error) {
+func (jd *jsonData) MarshalBinary() (data []byte, err error) {
+	return json.Marshal(*jd)
+}
+
+func (jd *jsonData) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, jd)
+}
+
+func (jd *jsonData) ID() Hash32 {
+	return jd.MetaData.CachedHash
+}
+
+func (jd *jsonData) Type() DataType {
+	return jd.MetaData.DataType
+}
+
+func NewAudioData(metadata MetaData, content Content) (ad *audioData) {
+	ad = &audioData{
+		MetaData: metadata,
+		Content:  content,
+	}
+
+	ad.MetaData.CachedHash = hash(ad.Content)
+
+	return ad
+}
+
+type audioData struct {
+	MetaData
+	Content Content `json:"content"`
+}
+
+func (ad *audioData) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(*ad)
 }
 
-func (ad *AudioData) UnmarshalBinary(data []byte) error {
+func (ad *audioData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, ad)
 }
 
-func (ad *AudioData) Hash() Hash32 {
-	data, err := ad.MarshalBinary()
-	if err != nil {
-		log.Println(err)
+func (ad *audioData) ID() Hash32 {
+	return ad.MetaData.CachedHash
+}
+
+func (ad *audioData) Type() DataType {
+	return ad.MetaData.DataType
+}
+
+func NewVideoData(metadata MetaData, frames Content) (vd *videoData) {
+	vd = &videoData{
+		MetaData: metadata,
+		Frames:   frames,
 	}
 
-	return sha256.Sum256(data)
+	vd.MetaData.CachedHash = hash(vd.Frames)
+
+	return
 }
 
-type VideoData struct {
-	MetaData `json:"meta_data"`
-	Frames   []Content `json:"frames"`
+type videoData struct {
+	MetaData
+	Frames Content `json:"frames"`
 }
 
-func (vd *VideoData) MarshalBinary() (data []byte, err error) {
+func (vd *videoData) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(*vd)
 }
 
-func (vd *VideoData) UnmarshalBinary(data []byte) error {
+func (vd *videoData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, vd)
 }
 
-func (vd *VideoData) Hash() Hash32 {
-	data, err := vd.MarshalBinary()
-	if err != nil {
-		log.Println(err)
-	}
+func (vd *videoData) ID() Hash32 {
+	return vd.MetaData.CachedHash
+}
 
-	return sha256.Sum256(data)
+func (vd *videoData) Type() DataType {
+	return vd.MetaData.DataType
+}
+
+func hash(bytes []byte) Hash32 {
+	return sha256.Sum256(bytes)
 }

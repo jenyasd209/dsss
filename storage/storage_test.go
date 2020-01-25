@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,84 +9,76 @@ import (
 	"github.com/iorhachovyevhen/dsss/models"
 )
 
-func TestWriteData(t *testing.T) {
-	data := models.SimpleData{Content: []byte("test")}
+func TestNewStorageWithOptions(t *testing.T) {
+	opt := NewOptions().
+		WithDir("/tmp/badger").
+		WithValueDir("/tmp/badger").
+		WithValueLogFileSize(2 << 20)
 
-	value, err := data.MarshalBinary()
-	assert.Nil(t, err, err)
+	storage := NewStorageWithOptions(opt)
+	defer storage.Close()
+	require.NotNil(t, storage)
+}
 
-	err = NewData(data.Hash(), value)
+func TestStorage_Add(t *testing.T) {
+	storage := NewDefaultStorage("/tmp/badger")
+	defer storage.Close()
+
+	data := models.NewSimpleData(
+		models.MetaData{
+			Title:    "test",
+			DataType: models.Simple,
+		},
+		[]byte("content"),
+	)
+
+	err := storage.Add(data)
 	assert.Nil(t, err, err)
 }
 
-func TestReadSimple(t *testing.T) {
-	expectedData := models.SimpleData{
-		Content: []byte("test"),
-	}
+func TestStorage_Read(t *testing.T) {
+	storage := NewDefaultStorage("/tmp/badger")
+	defer storage.Close()
 
-	bytes, err := expectedData.MarshalBinary()
+	expectedData := models.NewSimpleData(
+		models.MetaData{
+			Title:    "test",
+			DataType: models.Simple,
+		},
+		[]byte("content"),
+	)
+
+	err := storage.Add(expectedData)
 	assert.Nil(t, err, err)
 
-	err = NewData(expectedData.Hash(), bytes)
-	assert.Nil(t, err, err)
+	data := models.NewSimpleData(models.MetaData{}, nil)
 
-	value, err := ReadData(expectedData.Hash())
+	err = storage.Read(expectedData.ID(), data)
 	assert.Nil(t, err, err)
-
-	data := models.SimpleData{}
-	err = data.UnmarshalBinary(value)
-	assert.Nil(t, err, err)
-
 	assert.Equal(t, expectedData, data)
 }
 
-func TestUpdateData(t *testing.T) {
-	expectedData := models.SimpleData{
-		Content: []byte("test"),
-	}
-	updatedData := models.SimpleData{
-		Content: []byte("update"),
-	}
-
-	value, err := expectedData.MarshalBinary()
-	assert.Nil(t, err, err)
-
-	err = NewData(expectedData.Hash(), value)
-	assert.Nil(t, err, err)
-
-	value, err = updatedData.MarshalBinary()
-	assert.Nil(t, err, err)
-
-	err = UpdateData(expectedData.Hash(), updatedData.Hash(), value)
-	assert.Nil(t, err, err)
-
-	value, err = ReadData(expectedData.Hash())
-	assert.NotNil(t, err, err)
-
-	value, err = ReadData(updatedData.Hash())
-	assert.Nil(t, err, err)
-
-	data := models.SimpleData{}
-
-	err = data.UnmarshalBinary(value)
-	assert.Nil(t, err, err)
-
-	assert.Equal(t, updatedData, data)
-}
-
 func TestDeleteData(t *testing.T) {
-	data := models.SimpleData{Content: []byte("test")}
+	storage := NewDefaultStorage("/tmp/badger")
+	defer storage.Close()
 
-	value, err := data.MarshalBinary()
+	expectedData := models.NewSimpleData(
+		models.MetaData{
+			Title:    "test",
+			DataType: models.Simple,
+		},
+		[]byte("content"),
+	)
+
+	err := storage.Add(expectedData)
 	assert.Nil(t, err, err)
 
-	err = NewData(data.Hash(), value)
+	err = storage.Delete(expectedData.ID(), expectedData.Type())
 	assert.Nil(t, err, err)
 
-	err = DeleteData(data.Hash())
-	assert.Nil(t, err, err)
+	data := models.NewSimpleData(models.MetaData{}, nil)
 
-	value, err = ReadData(data.Hash())
+	err = storage.Read(expectedData.ID(), data)
 	assert.NotNil(t, err, err)
-	assert.Nil(t, value)
+	assert.Equal(t, models.NewSimpleData(models.MetaData{}, nil), data)
 }
