@@ -25,15 +25,14 @@ var DataPrefix = map[models.DataType]Prefix{
 
 type DataKeeper interface {
 	Add(data models.Data) error
-	Read(key string, data models.Data) error
-	Delete(key string) error
+	Read(id models.Hash32, data models.Data) error
+	Delete(id models.Hash32, dataType models.DataType) error
 
 	Close() error
 }
 
 type Storage struct {
-	db      *badger.DB
-	options badger.Options
+	db *badger.DB
 }
 
 func NewOptions() badger.Options {
@@ -62,11 +61,7 @@ func openDB(opt badger.Options) *badger.DB {
 }
 
 func (s *Storage) Add(data models.Data) error {
-	if !data.IsCorrect() {
-		return errors.New("no correct")
-	}
-
-	key := composeKey(data.CachedHash(), data.Type())
+	key := composeKey(data.ID(), data.Type())
 
 	err := s.db.Update(func(txn *badger.Txn) error {
 		val, err := data.MarshalBinary()
@@ -84,8 +79,8 @@ func (s *Storage) Add(data models.Data) error {
 	return nil
 }
 
-func (s *Storage) Read(hash models.Hash32, data models.Data) error {
-	key := composeKey(hash, data.Type())
+func (s *Storage) Read(id models.Hash32, data models.Data) error {
+	key := composeKey(id, data.Type())
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -107,8 +102,8 @@ func (s *Storage) Read(hash models.Hash32, data models.Data) error {
 	return nil
 }
 
-func (s *Storage) Delete(hash models.Hash32, dataType models.DataType) error {
-	key := composeKey(hash, dataType)
+func (s *Storage) Delete(id models.Hash32, dataType models.DataType) error {
+	key := composeKey(id, dataType)
 
 	err := s.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete(key)

@@ -16,6 +16,7 @@ func TestNewStorageWithOptions(t *testing.T) {
 		WithValueLogFileSize(2 << 20)
 
 	storage := NewStorageWithOptions(opt)
+	defer storage.Close()
 	require.NotNil(t, storage)
 }
 
@@ -52,7 +53,7 @@ func TestStorage_Read(t *testing.T) {
 
 	data := models.NewSimpleData(models.MetaData{}, nil)
 
-	err = storage.Read(expectedData.CachedHash(), data)
+	err = storage.Read(expectedData.ID(), data)
 	assert.Nil(t, err, err)
 	assert.Equal(t, expectedData, data)
 }
@@ -72,12 +73,12 @@ func TestDeleteData(t *testing.T) {
 	err := storage.Add(expectedData)
 	assert.Nil(t, err, err)
 
-	err = storage.Delete(expectedData.CachedHash(), expectedData.Type())
+	err = storage.Delete(expectedData.ID(), expectedData.Type())
 	assert.Nil(t, err, err)
 
 	data := models.NewSimpleData(models.MetaData{}, nil)
 
-	err = storage.Read(expectedData.CachedHash(), data)
+	err = storage.Read(expectedData.ID(), data)
 	assert.NotNil(t, err, err)
 	assert.Equal(t, models.NewSimpleData(models.MetaData{}, nil), data)
 }
