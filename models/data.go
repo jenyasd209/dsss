@@ -34,7 +34,6 @@ type Data interface {
 	encoding.BinaryUnmarshaler
 
 	CachedHash() Hash32
-	IsCorrect() bool
 	Type() DataType
 }
 
@@ -60,10 +59,6 @@ func NewSimpleData(metadata MetaData, content Content) (sd *simpleData) {
 type simpleData struct {
 	MetaData
 	Content Content `json:"content"`
-}
-
-func (sd *simpleData) IsCorrect() bool {
-	return sd.MetaData.CachedHash == hash(sd.Content)
 }
 
 func (sd *simpleData) MarshalBinary() (data []byte, err error) {
@@ -110,10 +105,6 @@ func (jd *jsonData) CachedHash() Hash32 {
 	return jd.MetaData.CachedHash
 }
 
-func (jd *jsonData) IsCorrect() bool {
-	return jd.MetaData.CachedHash == hash(jd.Content)
-}
-
 func (jd *jsonData) Type() DataType {
 	return jd.MetaData.DataType
 }
@@ -146,10 +137,6 @@ func (ad *audioData) CachedHash() Hash32 {
 	return ad.MetaData.CachedHash
 }
 
-func (ad *audioData) IsCorrect() bool {
-	return ad.MetaData.CachedHash == hash(ad.Content)
-}
-
 func (ad *audioData) Type() DataType {
 	return ad.MetaData.DataType
 }
@@ -180,10 +167,6 @@ func (vd *videoData) UnmarshalBinary(data []byte) error {
 
 func (vd *videoData) CachedHash() Hash32 {
 	return vd.MetaData.CachedHash
-}
-
-func (vd *videoData) IsCorrect() bool {
-	return vd.MetaData.CachedHash == hash(vd.Frames)
 }
 
 func (vd *videoData) Type() DataType {
