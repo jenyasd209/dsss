@@ -1,12 +1,26 @@
-package main
+package server
 
 import (
 	"errors"
 	routing "github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
+	"log"
 )
 
 var ErrorWrongID = errors.New("id is wrong")
+
+func router() *routing.Router {
+	log.Println("Create router...")
+
+	router := routing.New()
+
+	files := router.Group("/files")
+	files.Put("", addFile)
+	files.Get("/<hash>", getFile).
+		Delete(deleteFile)
+
+	return router
+}
 
 func getFile(ctx *routing.Context) error {
 	dataType := ctx.QueryArgs().Peek("type")
