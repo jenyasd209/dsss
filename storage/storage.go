@@ -2,7 +2,6 @@ package storage
 
 import (
 	"errors"
-	"fmt"
 	"github.com/dgraph-io/badger"
 
 	"github.com/iorhachovyevhen/dsss/models"
@@ -81,8 +80,8 @@ func (s *Storage) Add(data models.Data) ([]byte, error) {
 }
 
 func (s *Storage) Read(key []byte) (models.Data, error) {
-	dt := dataTypeFromKey(key)
-	data := newData(dt)
+	dt := DataTypeFromKey(key)
+	data := NewData(dt)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -121,7 +120,6 @@ func (s *Storage) Close() error {
 
 func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
 	prefix := []byte(DataPrefix[dataType])
-	fmt.Println(string(prefix))
 
 	key = append(key, prefix...)
 	key = append(key, hash32[:]...)
@@ -129,7 +127,7 @@ func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
 	return
 }
 
-func newData(dataType models.DataType) models.Data {
+func NewData(dataType models.DataType) models.Data {
 	switch dataType {
 	case models.Simple:
 		return models.NewSimpleData(
@@ -164,10 +162,10 @@ func newData(dataType models.DataType) models.Data {
 	}
 }
 
-func dataTypeFromKey(id []byte) models.DataType {
-	return byteToDataType(id[:len(id)-32])
+func DataTypeFromKey(id []byte) models.DataType {
+	return ByteToDataType(id[:len(id)-32])
 }
 
-func byteToDataType(b []byte) models.DataType {
+func ByteToDataType(b []byte) models.DataType {
 	return models.DataType(b[len(b)-1] << (8 * len(b)))
 }

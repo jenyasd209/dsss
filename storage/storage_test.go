@@ -91,6 +91,6 @@ func TestDataTypeFromKey(t *testing.T) {
 		[]byte("content"),
 	)
 	id := composeKey(data.ID(), data.Type())
-	dt := dataTypeFromKey(id)
+	dt := DataTypeFromKey(id)
 	assert.Equal(t, data.DataType, dt)
 }

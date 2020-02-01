@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	db "github.com/iorhachovyevhen/dsss/storage"
 	routing "github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
 	"log"
@@ -15,7 +16,7 @@ func router() *routing.Router {
 	router := routing.New()
 
 	files := router.Group("/files")
-	files.Put("", addFile)
+	files.Post("", addFile)
 	files.Get("/<hash>", getFile).
 		Delete(deleteFile)
 
@@ -23,21 +24,13 @@ func router() *routing.Router {
 }
 
 func getFile(ctx *routing.Context) error {
-	dataType := ctx.QueryArgs().Peek("type")
-	data := newData(dataType)
-
-	idArg := ctx.QueryArgs().Peek("id")
-	if string(idArg) == "" {
+	key := ctx.QueryArgs().Peek("key")
+	if string(key) == "" {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return ErrorWrongID
 	}
 
-	id, err := byteToHash32(idArg)
-	if err != nil {
-		return err
-	}
-
-	err = storage.Read(id, data)
+	data, err := storage.Read(key)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		return nil
@@ -57,8 +50,12 @@ func getFile(ctx *routing.Context) error {
 }
 
 func addFile(ctx *routing.Context) error {
-	fileType := ctx.PostArgs().Peek("type")
-	data := newData(fileType)
+	fileType := ctx.QueryArgs().Peek("type")
+	if len(fileType) == 0 {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return nil
+	}
+	data := db.NewData(db.ByteToDataType(fileType))
 
 	file := ctx.PostBody()
 	err := data.UnmarshalBinary(file)
@@ -66,7 +63,7 @@ func addFile(ctx *routing.Context) error {
 		return err
 	}
 
-	err = storage.Add(data)
+	key, err := storage.Add(data)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return err
@@ -74,26 +71,19 @@ func addFile(ctx *routing.Context) error {
 
 	ctx.SetContentType("text/plain")
 	ctx.SetStatusCode(fasthttp.StatusCreated)
-	ctx.SetBodyString(data.ID().String())
+	ctx.SetBodyString(string(key))
 
 	return nil
 }
 
 func deleteFile(ctx *routing.Context) error {
-	dataType := byteToDataType(ctx.QueryArgs().Peek("type"))
-
-	idArg := ctx.QueryArgs().Peek("id")
-	if string(idArg) == "" {
+	key := ctx.QueryArgs().Peek("key")
+	if string(key) == "" {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return ErrorWrongID
 	}
 
-	id, err := byteToHash32(idArg)
-	if err != nil {
-		return err
-	}
-
-	err = storage.Delete(id, dataType)
+	err := storage.Delete(key)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		return err
@@ -101,7 +91,7 @@ func deleteFile(ctx *routing.Context) error {
 
 	ctx.SetContentType("text/plain")
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	ctx.SetBodyString(id.String())
+	ctx.SetBodyString(string(key))
 
 	return nil
 }
