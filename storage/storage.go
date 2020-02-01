@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"github.com/dgraph-io/badger"
 
 	"github.com/iorhachovyevhen/dsss/models"
@@ -24,9 +25,9 @@ var DataPrefix = map[models.DataType]Prefix{
 }
 
 type DataKeeper interface {
-	Add(data models.Data) error
-	Read(id models.Hash32, data models.Data) error
-	Delete(id models.Hash32, dataType models.DataType) error
+	Add(data models.Data) ([]byte, error)
+	Read(key []byte) (models.Data, error)
+	Delete(key []byte) error
 
 	Close() error
 }
@@ -60,7 +61,7 @@ func openDB(opt badger.Options) *badger.DB {
 	return db
 }
 
-func (s *Storage) Add(data models.Data) error {
+func (s *Storage) Add(data models.Data) ([]byte, error) {
 	key := composeKey(data.ID(), data.Type())
 
 	err := s.db.Update(func(txn *badger.Txn) error {
@@ -73,14 +74,15 @@ func (s *Storage) Add(data models.Data) error {
 	})
 
 	if err != nil {
-		return errors.New("writing data finished with error: " + err.Error())
+		return nil, errors.New("writing data finished with error: " + err.Error())
 	}
 
-	return nil
+	return key, nil
 }
 
-func (s *Storage) Read(id models.Hash32, data models.Data) error {
-	key := composeKey(id, data.Type())
+func (s *Storage) Read(key []byte) (models.Data, error) {
+	dt := dataTypeFromKey(key)
+	data := newData(dt)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -96,15 +98,13 @@ func (s *Storage) Read(id models.Hash32, data models.Data) error {
 	})
 
 	if err != nil {
-		return errors.New("reading finished with error: " + err.Error())
+		return nil, errors.New("reading finished with error: " + err.Error())
 	}
 
-	return nil
+	return data, nil
 }
 
-func (s *Storage) Delete(id models.Hash32, dataType models.DataType) error {
-	key := composeKey(id, dataType)
-
+func (s *Storage) Delete(key []byte) error {
 	err := s.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete(key)
 	})
@@ -121,9 +121,53 @@ func (s *Storage) Close() error {
 
 func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
 	prefix := []byte(DataPrefix[dataType])
+	fmt.Println(string(prefix))
 
 	key = append(key, prefix...)
 	key = append(key, hash32[:]...)
 
-	return key
+	return
+}
+
+func newData(dataType models.DataType) models.Data {
+	switch dataType {
+	case models.Simple:
+		return models.NewSimpleData(
+			models.MetaData{
+				DataType: models.Simple,
+			},
+			nil,
+		)
+	case models.JSON:
+		return models.NewJSONData(
+			models.MetaData{
+				DataType: models.JSON,
+			},
+			nil,
+		)
+	case models.Audio:
+		return models.NewJSONData(
+			models.MetaData{
+				DataType: models.Audio,
+			},
+			nil,
+		)
+	case models.Video:
+		return models.NewJSONData(
+			models.MetaData{
+				DataType: models.Video,
+			},
+			nil,
+		)
+	default:
+		return nil
+	}
+}
+
+func dataTypeFromKey(id []byte) models.DataType {
+	return byteToDataType(id[:len(id)-32])
+}
+
+func byteToDataType(b []byte) models.DataType {
+	return models.DataType(b[len(b)-1] << (8 * len(b)))
 }
