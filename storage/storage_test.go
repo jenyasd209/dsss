@@ -32,8 +32,11 @@ func TestStorage_Add(t *testing.T) {
 		[]byte("content"),
 	)
 
-	err := storage.Add(data)
+	key := composeKey(data.ID(), data.Type())
+
+	obtainedKey, err := storage.Add(data)
 	assert.Nil(t, err, err)
+	assert.Equal(t, key, obtainedKey)
 }
 
 func TestStorage_Read(t *testing.T) {
@@ -48,12 +51,10 @@ func TestStorage_Read(t *testing.T) {
 		[]byte("content"),
 	)
 
-	err := storage.Add(expectedData)
+	obtainedKey, err := storage.Add(expectedData)
 	assert.Nil(t, err, err)
 
-	data := models.NewSimpleData(models.MetaData{}, nil)
-
-	err = storage.Read(expectedData.ID(), data)
+	data, err := storage.Read(obtainedKey)
 	assert.Nil(t, err, err)
 	assert.Equal(t, expectedData, data)
 }
@@ -70,15 +71,26 @@ func TestDeleteData(t *testing.T) {
 		[]byte("content"),
 	)
 
-	err := storage.Add(expectedData)
+	obtainedKey, err := storage.Add(expectedData)
 	assert.Nil(t, err, err)
 
-	err = storage.Delete(expectedData.ID(), expectedData.Type())
+	err = storage.Delete(obtainedKey)
 	assert.Nil(t, err, err)
 
-	data := models.NewSimpleData(models.MetaData{}, nil)
-
-	err = storage.Read(expectedData.ID(), data)
+	data, err := storage.Read(obtainedKey)
 	assert.NotNil(t, err, err)
-	assert.Equal(t, models.NewSimpleData(models.MetaData{}, nil), data)
+	assert.Nil(t, data)
+}
+
+func TestDataTypeFromKey(t *testing.T) {
+	data := models.NewSimpleData(
+		models.MetaData{
+			Title:    "test",
+			DataType: models.Simple,
+		},
+		[]byte("content"),
+	)
+	id := composeKey(data.ID(), data.Type())
+	dt := dataTypeFromKey(id)
+	assert.Equal(t, data.DataType, dt)
 }
