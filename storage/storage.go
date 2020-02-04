@@ -81,7 +81,7 @@ func (s *Storage) Add(data models.Data) ([]byte, error) {
 }
 
 func (s *Storage) Read(key []byte) (models.Data, error) {
-	dt := dataTypeFromKey(key)
+	dt := DataTypeFromKey(key)
 	data := models.NewEmptyData(dt)
 
 	err := s.db.View(func(txn *badger.Txn) error {
@@ -129,10 +129,10 @@ func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
 	return
 }
 
-func dataTypeFromKey(id []byte) models.DataType {
-	return byteToDataType(id[:len(id)-32])
+func DataTypeFromKey(id []byte) models.DataType {
+	return ByteToDataType(id[:len(id)-32])
 }
 
-func byteToDataType(b []byte) models.DataType {
+func ByteToDataType(b []byte) models.DataType {
 	return models.DataType(b[len(b)-1] << (8 * len(b)))
 }
