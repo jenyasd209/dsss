@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/iorhachovyevhen/dsss/models"
 	db "github.com/iorhachovyevhen/dsss/storage"
 	routing "github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
@@ -55,7 +56,7 @@ func addFile(ctx *routing.Context) error {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return nil
 	}
-	data := db.NewData(db.ByteToDataType(fileType))
+	data := models.NewEmptyData(db.ByteToDataType(fileType))
 
 	file := ctx.PostBody()
 	err := data.UnmarshalBinary(file)

@@ -81,7 +81,7 @@ func TestGet(t *testing.T) {
 	err = client.Do(req, resp)
 	require.Nil(t, err, err)
 
-	obtainedData := db.NewData(db.DataTypeFromKey([]byte(key)))
+	obtainedData := models.NewEmptyData(db.DataTypeFromKey([]byte(key)))
 	err = obtainedData.UnmarshalBinary(resp.Body())
 	fmt.Println(resp.Body())
 	require.Nil(t, err, err)
