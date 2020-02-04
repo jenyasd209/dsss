@@ -173,3 +173,151 @@ func (vd *videoData) Type() DataType {
 func hash(bytes []byte) Hash32 {
 	return sha256.Sum256(bytes)
 }
+
+func NewEmptyData(dataType DataType) Data {
+	switch dataType {
+	case Simple:
+		return NewSimpleData(
+			MetaData{
+				DataType: Simple,
+			},
+			nil,
+		)
+	case JSON:
+		return NewJSONData(
+			MetaData{
+				DataType: JSON,
+			},
+			nil,
+		)
+	case Audio:
+		return NewJSONData(
+			MetaData{
+				DataType: Audio,
+			},
+			nil,
+		)
+	case Video:
+		return NewJSONData(
+			MetaData{
+				DataType: Video,
+			},
+			nil,
+		)
+	default:
+		return nil
+	}
+}
+
+func NewDataWithTitle(dataType DataType, title string) Data {
+	switch dataType {
+	case Simple:
+		return NewSimpleData(
+			MetaData{
+				Title:    title,
+				DataType: Simple,
+			},
+			nil,
+		)
+	case JSON:
+		return NewJSONData(
+			MetaData{
+				Title:    title,
+				DataType: JSON,
+			},
+			nil,
+		)
+	case Audio:
+		return NewJSONData(
+			MetaData{
+				Title:    title,
+				DataType: Audio,
+			},
+			nil,
+		)
+	case Video:
+		return NewJSONData(
+			MetaData{
+				Title:    title,
+				DataType: Video,
+			},
+			nil,
+		)
+	default:
+		return nil
+	}
+}
+
+func NewDataWithContent(dataType DataType, content Content) Data {
+	switch dataType {
+	case Simple:
+		return NewSimpleData(
+			MetaData{
+				DataType: Simple,
+			},
+			content,
+		)
+	case JSON:
+		return NewJSONData(
+			MetaData{
+				DataType: JSON,
+			},
+			content,
+		)
+	case Audio:
+		return NewJSONData(
+			MetaData{
+				DataType: Audio,
+			},
+			content,
+		)
+	case Video:
+		return NewJSONData(
+			MetaData{
+				DataType: Video,
+			},
+			content,
+		)
+	default:
+		return nil
+	}
+}
+
+func NewData(dataType DataType, title string, content Content) Data {
+	switch dataType {
+	case Simple:
+		return NewSimpleData(
+			MetaData{
+				Title:    title,
+				DataType: Simple,
+			},
+			content,
+		)
+	case JSON:
+		return NewJSONData(
+			MetaData{
+				Title:    title,
+				DataType: JSON,
+			},
+			content,
+		)
+	case Audio:
+		return NewJSONData(
+			MetaData{
+				Title:    title,
+				DataType: Audio,
+			},
+			content,
+		)
+	case Video:
+		return NewJSONData(
+			MetaData{
+				Title:    title,
+				DataType: Video,
+			},
+			content,
+		)
+	default:
+		return nil
+	}
+}
