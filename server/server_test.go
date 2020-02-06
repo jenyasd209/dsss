@@ -13,23 +13,24 @@ import (
 
 var route = "http://localhost:8080/files"
 
-var file = models.NewSimpleData(
-	models.MetaData{
-		Title:    "test",
-		DataType: models.Simple,
-	},
-	[]byte("content"),
-)
-
 func TestAdd(t *testing.T) {
+	var file = models.NewSimpleData(
+		models.MetaData{
+			Title:    "test",
+			DataType: models.Audio,
+		},
+		[]byte("content"),
+	)
+
 	data, err := file.MarshalBinary()
 	require.Nil(t, err, err)
 
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("POST")
 
+	bytes := models.DataTypeToByteSlice(file.Type())
 	req.SetRequestURI(route)
-	req.URI().QueryArgs().Add("type", string(file.Type()))
+	req.URI().QueryArgs().AddBytesV("type", bytes)
 
 	req.SetBody(data)
 
@@ -58,7 +59,9 @@ func TestGet(t *testing.T) {
 	req.Header.SetMethod("POST")
 
 	req.SetRequestURI(route)
-	req.URI().QueryArgs().Add("type", string(testFile.Type()))
+
+	bytes := models.DataTypeToByteSlice(testFile.Type())
+	req.URI().QueryArgs().AddBytesV("type", bytes)
 
 	req.SetBody(data)
 
@@ -67,6 +70,8 @@ func TestGet(t *testing.T) {
 	client := &fasthttp.Client{}
 	err = client.Do(req, resp)
 	require.Nil(t, err, err)
+	require.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
+	require.NotNil(t, resp.Body())
 
 	key := string(resp.Body())
 
@@ -81,11 +86,14 @@ func TestGet(t *testing.T) {
 	err = client.Do(req, resp)
 	require.Nil(t, err, err)
 
-	obtainedData := models.NewEmptyData(db.DataTypeFromKey([]byte(key)))
+	dt, err := db.DataTypeFromKey([]byte(key))
+	require.Nil(t, err, err)
+
+	obtainedData := models.NewEmptyData(dt)
 	err = obtainedData.UnmarshalBinary(resp.Body())
 	fmt.Println(resp.Body())
 	require.Nil(t, err, err)
-	require.Equal(t, file, obtainedData)
+	require.Equal(t, testFile, obtainedData)
 	require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
 }
 
@@ -105,7 +113,9 @@ func TestDelete(t *testing.T) {
 	req.Header.SetMethod("POST")
 
 	req.SetRequestURI(route)
-	req.URI().QueryArgs().Add("type", string(testFile.Type()))
+
+	bytes := models.DataTypeToByteSlice(testFile.Type())
+	req.URI().QueryArgs().AddBytesV("type", bytes)
 
 	req.SetBody(data)
 
@@ -114,6 +124,7 @@ func TestDelete(t *testing.T) {
 	client := &fasthttp.Client{}
 	err = client.Do(req, resp)
 	require.Nil(t, err, err)
+	require.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
 	require.NotNil(t, resp.Body())
 
 	key := string(resp.Body())

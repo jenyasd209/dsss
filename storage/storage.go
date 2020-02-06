@@ -138,8 +138,8 @@ func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
 }
 
 func DataTypeFromKey(key []byte) (models.DataType, error) {
-	prefix := key[:len(key)-32]
-	dt, ok := DataTypeMap[Prefix(prefix)]
+	prefix := Prefix(key[:len(key)-32])
+	dt, ok := DataTypeMap[prefix]
 	if !ok {
 		return dt, errors.Errorf("can't get data type from key")
 	}
