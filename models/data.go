@@ -32,6 +32,7 @@ type Data interface {
 
 	ID() Hash32
 	Type() DataType
+	Body() Content
 }
 
 type MetaData struct {
@@ -74,6 +75,10 @@ func (sd *simpleData) Type() DataType {
 	return sd.MetaData.DataType
 }
 
+func (sd *simpleData) Body() Content {
+	return sd.Content
+}
+
 func NewJSONData(metadata MetaData, content Content) (jd *jsonData) {
 	jd = &jsonData{
 		MetaData: metadata,
@@ -104,6 +109,10 @@ func (jd *jsonData) ID() Hash32 {
 
 func (jd *jsonData) Type() DataType {
 	return jd.MetaData.DataType
+}
+
+func (jd *jsonData) Body() Content {
+	return jd.Content
 }
 
 func NewAudioData(metadata MetaData, content Content) (ad *audioData) {
@@ -138,6 +147,10 @@ func (ad *audioData) Type() DataType {
 	return ad.MetaData.DataType
 }
 
+func (ad *audioData) Body() Content {
+	return ad.Content
+}
+
 func NewVideoData(metadata MetaData, frames Content) (vd *videoData) {
 	vd = &videoData{
 		MetaData: metadata,
@@ -168,6 +181,10 @@ func (vd *videoData) ID() Hash32 {
 
 func (vd *videoData) Type() DataType {
 	return vd.MetaData.DataType
+}
+
+func (vd *videoData) Body() Content {
+	return vd.Frames
 }
 
 func hash(bytes []byte) Hash32 {
