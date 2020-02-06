@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
 	"github.com/dgraph-io/badger"
+	"github.com/pkg/errors"
 
 	"github.com/iorhachovyevhen/dsss/models"
 )
@@ -17,11 +17,18 @@ const (
 	PrefixVideo  Prefix = "video"
 )
 
-var DataPrefix = map[models.DataType]Prefix{
+var DataPrefixMap = map[models.DataType]Prefix{
 	models.Simple: PrefixSimple,
 	models.JSON:   PrefixJSON,
 	models.Audio:  PrefixAudio,
 	models.Video:  PrefixVideo,
+}
+
+var DataTypeMap = map[Prefix]models.DataType{
+	PrefixSimple: models.Simple,
+	PrefixJSON:   models.JSON,
+	PrefixAudio:  models.Audio,
+	PrefixVideo:  models.Video,
 }
 
 type DataKeeper interface {
@@ -81,10 +88,13 @@ func (s *Storage) Add(data models.Data) ([]byte, error) {
 }
 
 func (s *Storage) Read(key []byte) (models.Data, error) {
-	dt := DataTypeFromKey(key)
+	dt, err := DataTypeFromKey(key)
+	if err != nil {
+		return nil, err
+	}
 	data := models.NewEmptyData(dt)
 
-	err := s.db.View(func(txn *badger.Txn) error {
+	err = s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return err
@@ -120,7 +130,7 @@ func (s *Storage) Close() error {
 }
 
 func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
-	prefix := []byte(DataPrefix[dataType])
+	prefix := []byte(DataPrefixMap[dataType])
 	fmt.Println(string(prefix))
 
 	key = append(key, prefix...)
@@ -129,10 +139,11 @@ func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
 	return
 }
 
-func DataTypeFromKey(id []byte) models.DataType {
-	return ByteToDataType(id[:len(id)-32])
-}
-
-func ByteToDataType(b []byte) models.DataType {
-	return models.DataType(b[len(b)-1] << (8 * len(b)))
+func DataTypeFromKey(key []byte) (models.DataType, error) {
+	prefix := key[:len(key)-32]
+	dt, ok := DataTypeMap[Prefix(prefix)]
+	if !ok {
+		return dt, errors.Errorf("can't get data type from key")
+	}
+	return dt, nil
 }
