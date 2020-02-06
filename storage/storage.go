@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"github.com/dgraph-io/badger"
 	"github.com/pkg/errors"
 
@@ -131,7 +130,6 @@ func (s *Storage) Close() error {
 
 func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
 	prefix := []byte(DataPrefixMap[dataType])
-	fmt.Println(string(prefix))
 
 	key = append(key, prefix...)
 	key = append(key, hash32[:]...)
