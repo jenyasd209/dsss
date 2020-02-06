@@ -5,6 +5,7 @@ import (
 	"encoding"
 	"encoding/hex"
 	"encoding/json"
+	"strconv"
 )
 
 type DataType uint8
@@ -320,4 +321,17 @@ func NewData(dataType DataType, title string, content Content) Data {
 	default:
 		return nil
 	}
+}
+
+func DataTypeToByteSlice(dataType DataType) []byte {
+	str := strconv.Itoa(int(dataType))
+	return []byte(str)
+}
+
+func ByteSliceToDataType(b []byte) (DataType, error) {
+	d, err := strconv.Atoi(string(b))
+	if err != nil {
+		return 0, err
+	}
+	return DataType(d), nil
 }

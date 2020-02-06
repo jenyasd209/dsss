@@ -86,11 +86,12 @@ func TestDataTypeFromKey(t *testing.T) {
 	data := models.NewSimpleData(
 		models.MetaData{
 			Title:    "test",
-			DataType: models.Simple,
+			DataType: models.Audio,
 		},
 		[]byte("content"),
 	)
 	id := composeKey(data.ID(), data.Type())
-	dt := DataTypeFromKey(id)
+	dt, err := DataTypeFromKey(id)
+	assert.Nil(t, err, err)
 	assert.Equal(t, data.DataType, dt)
 }
