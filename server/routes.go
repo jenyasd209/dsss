@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"github.com/pkg/errors"
 	"log"
 
@@ -34,7 +35,7 @@ func getFile(ctx *routing.Context) error {
 	data, err := storage.Read(key)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		return nil
+		return err
 	}
 
 	body, err := data.MarshalBinary()
@@ -51,22 +52,33 @@ func getFile(ctx *routing.Context) error {
 }
 
 func addFile(ctx *routing.Context) error {
-	fileType := ctx.QueryArgs().Peek("type")
-	if len(fileType) == 0 {
+	var body map[string]interface{}
+	json.Unmarshal(ctx.PostBody(), &body)
+
+	fileType, ok := body["data_type"]
+	if !ok {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return nil
 	}
 
-	dt, err := models.ByteSliceToDataType(fileType)
-	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return errors.Errorf("byte converting finished with err: %v", err)
-	}
+	dt := fileType.(uint8)
 
-	data := models.NewEmptyData(dt)
+	//fileType := ctx.PostArgs().Peek("data_type")
+	//if len(fileType) == 0 {
+	//	ctx.SetStatusCode(fasthttp.StatusBadRequest)
+	//	return ErrorWrongID
+	//}
+
+	//dt, err := models.ByteSliceToDataType(fileType)
+	//if err != nil {
+	//	ctx.SetStatusCode(fasthttp.StatusBadRequest)
+	//	return errors.Errorf("byte converting finished with err: %v", err)
+	//}
+
+	data := models.NewEmptyData(models.DataType(dt))
 
 	file := ctx.PostBody()
-	err = data.UnmarshalBinary(file)
+	err := data.UnmarshalBinary(file)
 	if err != nil {
 		return err
 	}
