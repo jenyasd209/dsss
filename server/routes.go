@@ -1,8 +1,8 @@
 package server
 
 import (
-	"encoding/json"
 	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 	"log"
 
 	"github.com/iorhachovyevhen/dsss/models"
@@ -52,32 +52,10 @@ func getFile(ctx *routing.Context) error {
 }
 
 func addFile(ctx *routing.Context) error {
-	var body map[string]interface{}
-	json.Unmarshal(ctx.PostBody(), &body)
+	file := ctx.Request.Body()
+	dataType := gjson.Get(string(file), "data_type")
+	data := models.NewEmptyData(models.DataType(dataType.Uint()))
 
-	fileType, ok := body["data_type"]
-	if !ok {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return nil
-	}
-
-	dt := fileType.(uint8)
-
-	//fileType := ctx.PostArgs().Peek("data_type")
-	//if len(fileType) == 0 {
-	//	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	//	return ErrorWrongID
-	//}
-
-	//dt, err := models.ByteSliceToDataType(fileType)
-	//if err != nil {
-	//	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	//	return errors.Errorf("byte converting finished with err: %v", err)
-	//}
-
-	data := models.NewEmptyData(models.DataType(dt))
-
-	file := ctx.PostBody()
 	err := data.UnmarshalBinary(file)
 	if err != nil {
 		return err

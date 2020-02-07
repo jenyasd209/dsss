@@ -27,11 +27,7 @@ func TestAdd(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("POST")
-
-	bytes := models.DataTypeToByteSlice(file.Type())
 	req.SetRequestURI(route)
-	req.URI().QueryArgs().AddBytesV("type", bytes)
-
 	req.SetBody(data)
 
 	resp := fasthttp.AcquireResponse()
@@ -57,12 +53,7 @@ func TestGet(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("POST")
-
 	req.SetRequestURI(route)
-
-	bytes := models.DataTypeToByteSlice(testFile.Type())
-	req.URI().QueryArgs().AddBytesV("type", bytes)
-
 	req.SetBody(data)
 
 	resp := fasthttp.AcquireResponse()
@@ -111,12 +102,7 @@ func TestDelete(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("POST")
-
 	req.SetRequestURI(route)
-
-	bytes := models.DataTypeToByteSlice(testFile.Type())
-	req.URI().QueryArgs().AddBytesV("type", bytes)
-
 	req.SetBody(data)
 
 	resp := fasthttp.AcquireResponse()

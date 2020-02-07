@@ -11,5 +11,7 @@ require (
 	github.com/qiangxue/fasthttp-routing v0.0.0-20160225050629-6ccdc2a18d87
 	github.com/spf13/viper v1.6.2
 	github.com/stretchr/testify v1.4.0
+	github.com/tidwall/gjson v1.4.0
+	github.com/tidwall/pretty v1.0.1 // indirect
 	github.com/valyala/fasthttp v1.8.0
 )
