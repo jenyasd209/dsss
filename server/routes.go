@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 	"log"
 
 	"github.com/iorhachovyevhen/dsss/models"
@@ -34,7 +35,7 @@ func getFile(ctx *routing.Context) error {
 	data, err := storage.Read(key)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		return nil
+		return err
 	}
 
 	body, err := data.MarshalBinary()
@@ -51,22 +52,11 @@ func getFile(ctx *routing.Context) error {
 }
 
 func addFile(ctx *routing.Context) error {
-	fileType := ctx.QueryArgs().Peek("type")
-	if len(fileType) == 0 {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return nil
-	}
+	file := ctx.Request.Body()
+	dataType := gjson.Get(string(file), "data_type")
+	data := models.NewEmptyData(models.DataType(dataType.Uint()))
 
-	dt, err := models.ByteSliceToDataType(fileType)
-	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return errors.Errorf("byte converting finished with err: %v", err)
-	}
-
-	data := models.NewEmptyData(dt)
-
-	file := ctx.PostBody()
-	err = data.UnmarshalBinary(file)
+	err := data.UnmarshalBinary(file)
 	if err != nil {
 		return err
 	}
