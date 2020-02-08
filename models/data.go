@@ -1,12 +1,10 @@
 package models
 
 import (
-	"crypto/sha256"
 	"encoding"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"strconv"
 )
 
 type DataType uint8
@@ -18,8 +16,32 @@ const (
 	Video
 )
 
+type Prefix string
+
+const (
+	PrefixSimple Prefix = "simple"
+	PrefixJSON   Prefix = "json"
+	PrefixAudio  Prefix = "audio"
+	PrefixVideo  Prefix = "video"
+)
+
+var DataPrefixMap = map[DataType]Prefix{
+	Simple: PrefixSimple,
+	JSON:   PrefixJSON,
+	Audio:  PrefixAudio,
+	Video:  PrefixVideo,
+}
+
+var DataTypeMap = map[Prefix]DataType{
+	PrefixSimple: Simple,
+	PrefixJSON:   JSON,
+	PrefixAudio:  Audio,
+	PrefixVideo:  Video,
+}
+
 var (
-	ErrorBadDataType = errors.New("can't convert to DataType")
+	ErrorBadDataType       = errors.New("can't convert to DataType")
+	ErrorGetDataTypeFromID = errors.New("can't get data type from ID")
 )
 
 type Hash32 [32]byte
@@ -36,15 +58,21 @@ type Data interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 
-	ID() Hash32
+	ID() ID
 	Type() DataType
 	Body() Content
 	Title() string
 }
 
+type ID []byte
+
+func (id ID) String() string {
+	return string(id)
+}
+
 type MetaData struct {
 	Title    string   `json:"title"`
-	ID       Hash32   `json:"id"`
+	ID       ID       `json:"id"`
 	DataType DataType `json:"data_type"`
 }
 
@@ -56,7 +84,8 @@ func NewSimpleData(metadata MetaData, content Content) (sd *simpleData) {
 		Content:  content,
 	}
 
-	sd.MetaData.ID = hash(sd.Content)
+	h := hash(sd.Content)
+	sd.MetaData.ID = composeID(h, sd.MetaData.DataType)
 
 	return
 }
@@ -74,7 +103,7 @@ func (sd *simpleData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, &sd)
 }
 
-func (sd *simpleData) ID() Hash32 {
+func (sd *simpleData) ID() ID {
 	return sd.MetaData.ID
 }
 
@@ -96,7 +125,8 @@ func NewJSONData(metadata MetaData, content Content) (jd *jsonData) {
 		Content:  content,
 	}
 
-	jd.MetaData.ID = hash(jd.Content)
+	h := hash(jd.Content)
+	jd.MetaData.ID = composeID(h, jd.DataType)
 
 	return
 }
@@ -114,7 +144,7 @@ func (jd *jsonData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, jd)
 }
 
-func (jd *jsonData) ID() Hash32 {
+func (jd *jsonData) ID() ID {
 	return jd.MetaData.ID
 }
 
@@ -136,7 +166,8 @@ func NewAudioData(metadata MetaData, content Content) (ad *audioData) {
 		Content:  content,
 	}
 
-	ad.MetaData.ID = hash(ad.Content)
+	h := hash(ad.Content)
+	ad.MetaData.ID = composeID(h, ad.DataType)
 
 	return ad
 }
@@ -154,7 +185,7 @@ func (ad *audioData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, ad)
 }
 
-func (ad *audioData) ID() Hash32 {
+func (ad *audioData) ID() ID {
 	return ad.MetaData.ID
 }
 
@@ -176,7 +207,8 @@ func NewVideoData(metadata MetaData, frames Content) (vd *videoData) {
 		Frames:   frames,
 	}
 
-	vd.MetaData.ID = hash(vd.Frames)
+	h := hash(vd.Frames)
+	vd.MetaData.ID = composeID(h, vd.DataType)
 
 	return
 }
@@ -194,7 +226,7 @@ func (vd *videoData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, vd)
 }
 
-func (vd *videoData) ID() Hash32 {
+func (vd *videoData) ID() ID {
 	return vd.MetaData.ID
 }
 
@@ -208,179 +240,4 @@ func (vd *videoData) Body() Content {
 
 func (vd *videoData) Title() string {
 	return vd.MetaData.Title
-}
-
-func hash(bytes []byte) Hash32 {
-	return sha256.Sum256(bytes)
-}
-
-func ConvertToDataType(value interface{}) (dataType DataType, err error) {
-	switch t := value.(type) {
-	case float64:
-		dataType = DataType(t)
-	case string:
-		i, err := strconv.Atoi(t)
-		if err != nil {
-			return 0, ErrorBadDataType
-		}
-		dataType = DataType(i)
-	case int:
-		dataType = DataType(t)
-	default:
-		return 0, ErrorBadDataType
-	}
-
-	return
-}
-
-func composeID() {
-
-}
-
-func NewEmptyData(dataType DataType) Data {
-	switch dataType {
-	case Simple:
-		return NewSimpleData(
-			MetaData{
-				DataType: Simple,
-			},
-			nil,
-		)
-	case JSON:
-		return NewJSONData(
-			MetaData{
-				DataType: JSON,
-			},
-			nil,
-		)
-	case Audio:
-		return NewAudioData(
-			MetaData{
-				DataType: Audio,
-			},
-			nil,
-		)
-	case Video:
-		return NewVideoData(
-			MetaData{
-				DataType: Video,
-			},
-			nil,
-		)
-	default:
-		return nil
-	}
-}
-
-func NewDataWithTitle(dataType DataType, title string) Data {
-	switch dataType {
-	case Simple:
-		return NewSimpleData(
-			MetaData{
-				Title:    title,
-				DataType: Simple,
-			},
-			nil,
-		)
-	case JSON:
-		return NewJSONData(
-			MetaData{
-				Title:    title,
-				DataType: JSON,
-			},
-			nil,
-		)
-	case Audio:
-		return NewAudioData(
-			MetaData{
-				Title:    title,
-				DataType: Audio,
-			},
-			nil,
-		)
-	case Video:
-		return NewVideoData(
-			MetaData{
-				Title:    title,
-				DataType: Video,
-			},
-			nil,
-		)
-	default:
-		return nil
-	}
-}
-
-func NewDataWithContent(dataType DataType, content Content) Data {
-	switch dataType {
-	case Simple:
-		return NewSimpleData(
-			MetaData{
-				DataType: Simple,
-			},
-			content,
-		)
-	case JSON:
-		return NewJSONData(
-			MetaData{
-				DataType: JSON,
-			},
-			content,
-		)
-	case Audio:
-		return NewAudioData(
-			MetaData{
-				DataType: Audio,
-			},
-			content,
-		)
-	case Video:
-		return NewVideoData(
-			MetaData{
-				DataType: Video,
-			},
-			content,
-		)
-	default:
-		return nil
-	}
-}
-
-func NewData(dataType DataType, title string, content Content) Data {
-	switch dataType {
-	case Simple:
-		return NewSimpleData(
-			MetaData{
-				Title:    title,
-				DataType: Simple,
-			},
-			content,
-		)
-	case JSON:
-		return NewJSONData(
-			MetaData{
-				Title:    title,
-				DataType: JSON,
-			},
-			content,
-		)
-	case Audio:
-		return NewAudioData(
-			MetaData{
-				Title:    title,
-				DataType: Audio,
-			},
-			content,
-		)
-	case Video:
-		return NewVideoData(
-			MetaData{
-				Title:    title,
-				DataType: Video,
-			},
-			content,
-		)
-	default:
-		return nil
-	}
 }
