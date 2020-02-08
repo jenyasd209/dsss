@@ -56,7 +56,7 @@ var contentType = map[string]string{
 	".wmv":  "video/x-ms-wmv",
 }
 
-func getDataType(filename string) models.DataType {
+func DataTypeFromFilename(filename string) models.DataType {
 	ext := filepath.Ext(filename)
 
 	dt, ok := fileType[ext]
@@ -67,7 +67,7 @@ func getDataType(filename string) models.DataType {
 	return dt
 }
 
-func getContentType(filename string) string {
+func ContentTypeFromName(filename string) string {
 	ext := filepath.Ext(filename)
 
 	ct, ok := contentType[ext]

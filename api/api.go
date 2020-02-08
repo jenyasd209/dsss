@@ -11,7 +11,7 @@ func API(address string) *api {
 	return &api{
 		address: address,
 		client: fasthttp.Client{
-			Name: "API",
+			Name: "DSSS API",
 		},
 	}
 }
@@ -29,11 +29,19 @@ type fileRoute struct {
 func (a *api) Files() *fileRoute {
 	return &fileRoute{
 		api:   a,
-		route: a.address + "/files",
+		route: a.address + "/file",
 	}
 }
 
-func (f *fileRoute) Add(fileName string, body []byte) ([]byte, error) {
+func (f *fileRoute) Add(fileName string, content []byte) ([]byte, error) {
+	dt := DataTypeFromFilename(fileName)
+	data := models.NewData(dt, fileName, content)
+
+	body, err := data.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := f.doRequest(f.route, "POST", body, nil)
 	if err != nil {
 		return nil, err
@@ -54,6 +62,10 @@ func (f *fileRoute) Get(key []byte) (models.Data, error) {
 	}
 	defer fasthttp.ReleaseResponse(resp)
 
+	if resp.StatusCode() != fasthttp.StatusOK {
+		return nil, errors.Errorf("%v: %s", resp.StatusCode(), resp.Body())
+	}
+
 	dt, err := storage.DataTypeFromKey(key)
 	if err != nil {
 		return nil, err
@@ -68,14 +80,18 @@ func (f *fileRoute) Get(key []byte) (models.Data, error) {
 	return obj, nil
 }
 
-func (f *fileRoute) Delete(key []byte) (fileName string, err error) {
+func (f *fileRoute) Delete(key []byte) ([]byte, error) {
 	resp, err := f.doRequest(f.route, "DELETE", nil, map[string][]byte{"key": key})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer fasthttp.ReleaseResponse(resp)
 
-	return string(resp.Body()), nil
+	if resp.StatusCode() != fasthttp.StatusOK {
+		return nil, errors.Errorf("%v: %s", resp.StatusCode(), resp.Body())
+	}
+
+	return resp.Body(), nil
 }
 
 func (a *api) doRequest(addr string, method string, body []byte, args map[string][]byte) (*fasthttp.Response, error) {
@@ -86,6 +102,7 @@ func (a *api) doRequest(addr string, method string, body []byte, args map[string
 
 	req.SetRequestURI(addr)
 	req.Header.SetMethod(method)
+	req.Header.SetContentType("application/json")
 	req.SetBody(body)
 
 	for k, v := range args {
