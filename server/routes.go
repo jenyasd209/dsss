@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"github.com/pkg/errors"
 	"log"
 
@@ -27,13 +26,7 @@ func router() *routing.Router {
 }
 
 func addFile(ctx *routing.Context) error {
-	value, err := jsonValue(ctx.Request.Body(), "data_type")
-	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return err
-	}
-
-	dt, err := convertToDataType(value)
+	dt, err := DataTypeFromJSON(ctx.Request.Body())
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return err
@@ -98,38 +91,4 @@ func deleteFile(ctx *routing.Context) error {
 	makeResponse(&ctx.Response, fasthttp.StatusOK, map[string]string{"Content-Type": "text/plain"}, key)
 
 	return nil
-}
-
-func makeResponse(resp *fasthttp.Response, statusCode int, contentTypes map[string]string, body []byte) {
-	resp.SetStatusCode(statusCode)
-
-	for k, v := range contentTypes {
-		resp.Header.Add(k, v)
-	}
-
-	resp.SetBody(body)
-}
-
-func jsonValue(body []byte, key string) (interface{}, error) {
-	var j map[string]interface{}
-
-	err := json.Unmarshal(body, &j)
-	if err != nil {
-		return nil, err
-	}
-
-	value, ok := j[key]
-	if !ok {
-		return nil, errors.Errorf("bad key: %v", key)
-	}
-
-	return value, nil
-}
-
-func convertToDataType(value interface{}) (models.DataType, error) {
-	dt, ok := value.(float64)
-	if !ok {
-		return models.DataType(dt), ErrorBadDataType
-	}
-	return models.DataType(dt), nil
 }
