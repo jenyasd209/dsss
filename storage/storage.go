@@ -70,7 +70,12 @@ func openDB(opt badger.Options) *badger.DB {
 func (s *Storage) Add(data models.Data) ([]byte, error) {
 	key := composeKey(data.ID(), data.Type())
 
-	err := s.db.Update(func(txn *badger.Txn) error {
+	_, err := s.Read(key)
+	if err == nil {
+		return key, errors.Errorf("key already is used")
+	}
+
+	err = s.db.Update(func(txn *badger.Txn) error {
 		val, err := data.MarshalBinary()
 		if err != nil {
 			return err
@@ -139,9 +144,11 @@ func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
 
 func DataTypeFromKey(key []byte) (models.DataType, error) {
 	prefix := key[:len(key)-32]
+
 	dt, ok := DataTypeMap[Prefix(prefix)]
 	if !ok {
 		return dt, errors.Errorf("can't get data type from key")
 	}
+
 	return dt, nil
 }
