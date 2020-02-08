@@ -5,6 +5,8 @@ import (
 	"encoding"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"strconv"
 )
 
 type DataType uint8
@@ -14,6 +16,10 @@ const (
 	JSON
 	Audio
 	Video
+)
+
+var (
+	ErrorBadDataType = errors.New("can't convert to DataType")
 )
 
 type Hash32 [32]byte
@@ -37,9 +43,9 @@ type Data interface {
 }
 
 type MetaData struct {
-	Title      string   `json:"title"`
-	CachedHash Hash32   `json:"cached_hash"`
-	DataType   DataType `json:"data_type"`
+	Title    string   `json:"title"`
+	ID       Hash32   `json:"id"`
+	DataType DataType `json:"data_type"`
 }
 
 type Content []byte
@@ -50,7 +56,7 @@ func NewSimpleData(metadata MetaData, content Content) (sd *simpleData) {
 		Content:  content,
 	}
 
-	sd.MetaData.CachedHash = hash(sd.Content)
+	sd.MetaData.ID = hash(sd.Content)
 
 	return
 }
@@ -69,7 +75,7 @@ func (sd *simpleData) UnmarshalBinary(data []byte) error {
 }
 
 func (sd *simpleData) ID() Hash32 {
-	return sd.MetaData.CachedHash
+	return sd.MetaData.ID
 }
 
 func (sd *simpleData) Type() DataType {
@@ -90,7 +96,7 @@ func NewJSONData(metadata MetaData, content Content) (jd *jsonData) {
 		Content:  content,
 	}
 
-	jd.MetaData.CachedHash = hash(jd.Content)
+	jd.MetaData.ID = hash(jd.Content)
 
 	return
 }
@@ -109,7 +115,7 @@ func (jd *jsonData) UnmarshalBinary(data []byte) error {
 }
 
 func (jd *jsonData) ID() Hash32 {
-	return jd.MetaData.CachedHash
+	return jd.MetaData.ID
 }
 
 func (jd *jsonData) Type() DataType {
@@ -130,7 +136,7 @@ func NewAudioData(metadata MetaData, content Content) (ad *audioData) {
 		Content:  content,
 	}
 
-	ad.MetaData.CachedHash = hash(ad.Content)
+	ad.MetaData.ID = hash(ad.Content)
 
 	return ad
 }
@@ -149,7 +155,7 @@ func (ad *audioData) UnmarshalBinary(data []byte) error {
 }
 
 func (ad *audioData) ID() Hash32 {
-	return ad.MetaData.CachedHash
+	return ad.MetaData.ID
 }
 
 func (ad *audioData) Type() DataType {
@@ -170,7 +176,7 @@ func NewVideoData(metadata MetaData, frames Content) (vd *videoData) {
 		Frames:   frames,
 	}
 
-	vd.MetaData.CachedHash = hash(vd.Frames)
+	vd.MetaData.ID = hash(vd.Frames)
 
 	return
 }
@@ -189,7 +195,7 @@ func (vd *videoData) UnmarshalBinary(data []byte) error {
 }
 
 func (vd *videoData) ID() Hash32 {
-	return vd.MetaData.CachedHash
+	return vd.MetaData.ID
 }
 
 func (vd *videoData) Type() DataType {
@@ -206,6 +212,29 @@ func (vd *videoData) Title() string {
 
 func hash(bytes []byte) Hash32 {
 	return sha256.Sum256(bytes)
+}
+
+func ConvertToDataType(value interface{}) (dataType DataType, err error) {
+	switch t := value.(type) {
+	case float64:
+		dataType = DataType(t)
+	case string:
+		i, err := strconv.Atoi(t)
+		if err != nil {
+			return 0, ErrorBadDataType
+		}
+		dataType = DataType(i)
+	case int:
+		dataType = DataType(t)
+	default:
+		return 0, ErrorBadDataType
+	}
+
+	return
+}
+
+func composeID() {
+
 }
 
 func NewEmptyData(dataType DataType) Data {

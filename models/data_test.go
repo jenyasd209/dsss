@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -132,4 +133,25 @@ func TestVideoData_UnmarshalBinary(t *testing.T) {
 	err = data.UnmarshalBinary(bytes)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedVideoData, data)
+}
+
+func TestConvertToDataType(t *testing.T) {
+	s := "2"
+	f := 2.0
+	i := 2
+
+	dt, err := ConvertToDataType(s)
+	require.Nil(t, err, err)
+	assert.Equal(t, Audio, dt)
+
+	dt, err = ConvertToDataType(f)
+	require.Nil(t, err, err)
+	assert.Equal(t, Audio, dt)
+
+	dt, err = ConvertToDataType(i)
+	require.Nil(t, err, err)
+	assert.Equal(t, Audio, dt)
+
+	dt, err = ConvertToDataType("sdfs")
+	require.Equal(t, ErrorBadDataType, err)
 }
