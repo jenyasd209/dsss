@@ -2,7 +2,6 @@ package api
 
 import (
 	"github.com/iorhachovyevhen/dsss/models"
-	"github.com/iorhachovyevhen/dsss/storage"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 )
@@ -33,7 +32,7 @@ func (a *api) Files() *fileRoute {
 	}
 }
 
-func (f *fileRoute) Add(fileName string, content []byte) ([]byte, error) {
+func (f *fileRoute) Add(fileName string, content []byte) (models.ID, error) {
 	dt := DataTypeFromFilename(fileName)
 	data := models.NewData(dt, fileName, content)
 
@@ -55,7 +54,7 @@ func (f *fileRoute) Add(fileName string, content []byte) ([]byte, error) {
 	return resp.Body(), nil
 }
 
-func (f *fileRoute) Get(key []byte) (models.Data, error) {
+func (f *fileRoute) Get(key models.ID) (models.Data, error) {
 	resp, err := f.doRequest(f.route, "GET", nil, map[string][]byte{"key": key})
 	if err != nil {
 		return nil, err
@@ -66,7 +65,7 @@ func (f *fileRoute) Get(key []byte) (models.Data, error) {
 		return nil, errors.Errorf("%v: %s", resp.StatusCode(), resp.Body())
 	}
 
-	dt, err := storage.DataTypeFromKey(key)
+	dt, err := models.DataTypeFromID(key)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +79,7 @@ func (f *fileRoute) Get(key []byte) (models.Data, error) {
 	return obj, nil
 }
 
-func (f *fileRoute) Delete(key []byte) ([]byte, error) {
+func (f *fileRoute) Delete(key models.ID) ([]byte, error) {
 	resp, err := f.doRequest(f.route, "DELETE", nil, map[string][]byte{"key": key})
 	if err != nil {
 		return nil, err
