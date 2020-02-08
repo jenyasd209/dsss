@@ -31,14 +31,12 @@ func TestStorage_Add(t *testing.T) {
 			Title:    "test",
 			DataType: models.Simple,
 		},
-		[]byte("content"),
+		randomContent(),
 	)
-
-	key := composeKey(data.ID(), data.Type())
 
 	obtainedKey, err := storage.Add(data)
 	assert.Nil(t, err, err)
-	assert.Equal(t, key, obtainedKey)
+	assert.Equal(t, data.ID(), obtainedKey)
 }
 
 func TestStorage_Read(t *testing.T) {
@@ -53,11 +51,9 @@ func TestStorage_Read(t *testing.T) {
 		randomContent(),
 	)
 
-	key := composeKey(expectedData.ID(), expectedData.Type())
-
 	obtainedKey, err := storage.Add(expectedData)
 	require.Nil(t, err, err)
-	assert.Equal(t, key, obtainedKey)
+	assert.Equal(t, expectedData.ID(), obtainedKey)
 
 	data, err := storage.Read(obtainedKey)
 	assert.Nil(t, err, err)
@@ -73,7 +69,7 @@ func TestStorage_Delete(t *testing.T) {
 			Title:    "test",
 			DataType: models.Simple,
 		},
-		[]byte("content"),
+		randomContent(),
 	)
 
 	obtainedKey, err := storage.Add(expectedData)
@@ -92,15 +88,13 @@ func TestStorage_AddConcurrent(t *testing.T) {
 	defer storage.Close()
 
 	datas := randomData(10)
-	key := composeKey(datas[0].ID(), datas[0].Type())
 
-	var err error
 	var title string
 	var wg sync.WaitGroup
 	for _, data := range datas {
 		wg.Add(1)
 		go func() {
-			_, err = storage.Add(data)
+			_, _ = storage.Add(data)
 			title = data.Title()
 
 			wg.Done()
@@ -109,12 +103,9 @@ func TestStorage_AddConcurrent(t *testing.T) {
 
 	wg.Wait()
 
-	obtainedData, err2 := storage.Read(key)
-	require.Nil(t, err2, err2)
+	obtainedData, err := storage.Read(datas[0].ID())
+	require.Nil(t, err, err)
 	assert.Equal(t, title, obtainedData.Title())
-
-	err = storage.Delete(key)
-	assert.Nil(t, err, err)
 }
 
 func TestStorage_DeleteConcurrent(t *testing.T) {
@@ -157,13 +148,12 @@ func TestDataTypeFromKey(t *testing.T) {
 		},
 		[]byte("content"),
 	)
-	id := composeKey(data.ID(), data.Type())
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
-			dt, err := DataTypeFromKey(id)
+			dt, err := models.DataTypeFromID(data.ID())
 			assert.Nil(t, err)
 			assert.Equal(t, data.DataType, dt)
 			wg.Done()
