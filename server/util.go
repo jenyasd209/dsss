@@ -5,27 +5,22 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iorhachovyevhen/dsss/models"
-	db "github.com/iorhachovyevhen/dsss/storage"
 	"github.com/valyala/fasthttp"
 )
 
-func DataTypeFromKey(key []byte) (models.DataType, error) {
-	return db.DataTypeFromKey(key)
-}
-
-func DataTypeFromJSON(j []byte) (models.DataType, error) {
+func dataTypeFromJSON(j []byte) (models.DataType, error) {
 	value, err := jsonValue(j, "data_type")
 	if err != nil {
 		return 0, err
 	}
 
-	return convertToDataType(value)
+	return models.ConvertToDataType(value)
 }
 
-func makeResponse(resp *fasthttp.Response, statusCode int, contentTypes map[string]string, body []byte) {
+func makeResponse(resp *fasthttp.Response, statusCode int, headerArgs map[string]string, body []byte) {
 	resp.SetStatusCode(statusCode)
 
-	for k, v := range contentTypes {
+	for k, v := range headerArgs {
 		resp.Header.Add(k, v)
 	}
 
@@ -46,12 +41,4 @@ func jsonValue(body []byte, key string) (interface{}, error) {
 	}
 
 	return value, nil
-}
-
-func convertToDataType(value interface{}) (models.DataType, error) {
-	dt, ok := value.(float64)
-	if !ok {
-		return models.DataType(dt), ErrorBadDataType
-	}
-	return models.DataType(dt), nil
 }
