@@ -10,7 +10,7 @@ var (
 	addr    = "http://localhost:8080"
 	dsssAPI = API(addr)
 
-	filename = "text.txt"
+	filename = "text.mp3"
 	content  = []byte("body")
 )
 
@@ -29,6 +29,7 @@ func TestFileRoute_Get(t *testing.T) {
 	require.Nil(t, err, err)
 	require.NotNil(t, data)
 	assert.Equal(t, content, []byte(data.Body()))
+	assert.Equal(t, filename, data.Title())
 }
 
 func TestFileRoute_Delete(t *testing.T) {
@@ -40,6 +41,7 @@ func TestFileRoute_Delete(t *testing.T) {
 	require.Nil(t, err, err)
 	require.NotNil(t, data)
 	assert.Equal(t, content, []byte(data.Body()))
+	assert.Equal(t, filename, data.Title())
 
 	_, err = dsssAPI.Files().Delete(key)
 	require.Nil(t, err, err)
