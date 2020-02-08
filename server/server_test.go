@@ -76,7 +76,7 @@ func TestGet(t *testing.T) {
 	err = client.Do(req, resp)
 	require.Nil(t, err, err)
 
-	dt, err := db.DataTypeFromKey([]byte(key))
+	dt, err := DataTypeFromKey([]byte(key))
 	require.Nil(t, err, err)
 
 	obtainedData := models.NewEmptyData(dt)
