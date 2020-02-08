@@ -34,6 +34,7 @@ type Data interface {
 	ID() Hash32
 	Type() DataType
 	Body() Content
+	Title() string
 }
 
 type MetaData struct {
@@ -80,6 +81,10 @@ func (sd *simpleData) Body() Content {
 	return sd.Content
 }
 
+func (sd *simpleData) Title() string {
+	return sd.MetaData.Title
+}
+
 func NewJSONData(metadata MetaData, content Content) (jd *jsonData) {
 	jd = &jsonData{
 		MetaData: metadata,
@@ -114,6 +119,10 @@ func (jd *jsonData) Type() DataType {
 
 func (jd *jsonData) Body() Content {
 	return jd.Content
+}
+
+func (jd *jsonData) Title() string {
+	return jd.MetaData.Title
 }
 
 func NewAudioData(metadata MetaData, content Content) (ad *audioData) {
@@ -152,6 +161,10 @@ func (ad *audioData) Body() Content {
 	return ad.Content
 }
 
+func (ad *audioData) Title() string {
+	return ad.MetaData.Title
+}
+
 func NewVideoData(metadata MetaData, frames Content) (vd *videoData) {
 	vd = &videoData{
 		MetaData: metadata,
@@ -188,6 +201,10 @@ func (vd *videoData) Body() Content {
 	return vd.Frames
 }
 
+func (vd *videoData) Title() string {
+	return vd.MetaData.Title
+}
+
 func hash(bytes []byte) Hash32 {
 	return sha256.Sum256(bytes)
 }
@@ -209,14 +226,14 @@ func NewEmptyData(dataType DataType) Data {
 			nil,
 		)
 	case Audio:
-		return NewJSONData(
+		return NewAudioData(
 			MetaData{
 				DataType: Audio,
 			},
 			nil,
 		)
 	case Video:
-		return NewJSONData(
+		return NewVideoData(
 			MetaData{
 				DataType: Video,
 			},
@@ -246,7 +263,7 @@ func NewDataWithTitle(dataType DataType, title string) Data {
 			nil,
 		)
 	case Audio:
-		return NewJSONData(
+		return NewAudioData(
 			MetaData{
 				Title:    title,
 				DataType: Audio,
@@ -254,7 +271,7 @@ func NewDataWithTitle(dataType DataType, title string) Data {
 			nil,
 		)
 	case Video:
-		return NewJSONData(
+		return NewVideoData(
 			MetaData{
 				Title:    title,
 				DataType: Video,
@@ -283,14 +300,14 @@ func NewDataWithContent(dataType DataType, content Content) Data {
 			content,
 		)
 	case Audio:
-		return NewJSONData(
+		return NewAudioData(
 			MetaData{
 				DataType: Audio,
 			},
 			content,
 		)
 	case Video:
-		return NewJSONData(
+		return NewVideoData(
 			MetaData{
 				DataType: Video,
 			},
@@ -320,7 +337,7 @@ func NewData(dataType DataType, title string, content Content) Data {
 			content,
 		)
 	case Audio:
-		return NewJSONData(
+		return NewAudioData(
 			MetaData{
 				Title:    title,
 				DataType: Audio,
@@ -328,7 +345,7 @@ func NewData(dataType DataType, title string, content Content) Data {
 			content,
 		)
 	case Video:
-		return NewJSONData(
+		return NewVideoData(
 			MetaData{
 				Title:    title,
 				DataType: Video,
