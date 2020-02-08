@@ -11,7 +11,6 @@ import (
 
 var ErrorBadID = errors.New("wrong id")
 var ErrorBadJSON = errors.New("bad json")
-var ErrorBadDataType = errors.New("Bad 'data_type' value")
 
 func router() *routing.Router {
 	log.Println("Create router...")
@@ -26,24 +25,36 @@ func router() *routing.Router {
 }
 
 func addFile(ctx *routing.Context) error {
-	dt, err := DataTypeFromJSON(ctx.Request.Body())
+	dt, err := dataTypeFromJSON(ctx.Request.Body())
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return err
+		makeResponse(&ctx.Response,
+			fasthttp.StatusBadRequest,
+			map[string]string{"Content-Type": "text/plain"},
+			[]byte(err.Error()),
+		)
+		return nil
 	}
 
 	data := models.NewEmptyData(dt)
 
 	err = data.UnmarshalBinary(ctx.Request.Body())
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return ErrorBadJSON
+		makeResponse(&ctx.Response,
+			fasthttp.StatusBadRequest,
+			map[string]string{"Content-Type": "text/plain"},
+			[]byte(ErrorBadJSON.Error()),
+		)
+		return nil
 	}
 
 	key, err := storage.Add(data)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return err
+		makeResponse(&ctx.Response,
+			fasthttp.StatusBadRequest,
+			map[string]string{"Content-Type": "text/plain"},
+			[]byte(err.Error()),
+		)
+		return nil
 	}
 
 	makeResponse(&ctx.Response, fasthttp.StatusCreated, map[string]string{"Content-Type": "text/plain"}, key)
@@ -54,20 +65,32 @@ func addFile(ctx *routing.Context) error {
 func getFile(ctx *routing.Context) error {
 	key := ctx.QueryArgs().Peek("key")
 	if key == nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return ErrorBadID
+		makeResponse(&ctx.Response,
+			fasthttp.StatusBadRequest,
+			map[string]string{"Content-Type": "text/plain"},
+			[]byte(ErrorBadID.Error()),
+		)
+		return nil
 	}
 
 	data, err := storage.Read(key)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		return err
+		makeResponse(&ctx.Response,
+			fasthttp.StatusNotFound,
+			map[string]string{"Content-Type": "text/plain"},
+			[]byte(err.Error()),
+		)
+		return nil
 	}
 
 	body, err := data.MarshalBinary()
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return err
+		makeResponse(&ctx.Response,
+			fasthttp.StatusBadRequest,
+			map[string]string{"Content-Type": "text/plain"},
+			[]byte(err.Error()),
+		)
+		return nil
 	}
 
 	makeResponse(&ctx.Response, fasthttp.StatusOK, map[string]string{"Content-Type": "application/json"}, body)
@@ -78,14 +101,22 @@ func getFile(ctx *routing.Context) error {
 func deleteFile(ctx *routing.Context) error {
 	key := ctx.QueryArgs().Peek("key")
 	if key == nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		return ErrorBadID
+		makeResponse(&ctx.Response,
+			fasthttp.StatusBadRequest,
+			map[string]string{"Content-Type": "text/plain"},
+			[]byte(ErrorBadID.Error()),
+		)
+		return nil
 	}
 
 	err := storage.Delete(key)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		return err
+		makeResponse(&ctx.Response,
+			fasthttp.StatusBadRequest,
+			map[string]string{"Content-Type": "text/plain"},
+			[]byte(err.Error()),
+		)
+		return nil
 	}
 
 	makeResponse(&ctx.Response, fasthttp.StatusOK, map[string]string{"Content-Type": "text/plain"}, key)
