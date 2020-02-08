@@ -7,31 +7,8 @@ import (
 	"github.com/iorhachovyevhen/dsss/models"
 )
 
-type Prefix string
-
-const (
-	PrefixSimple Prefix = "simple"
-	PrefixJSON   Prefix = "json"
-	PrefixAudio  Prefix = "audio"
-	PrefixVideo  Prefix = "video"
-)
-
-var DataPrefixMap = map[models.DataType]Prefix{
-	models.Simple: PrefixSimple,
-	models.JSON:   PrefixJSON,
-	models.Audio:  PrefixAudio,
-	models.Video:  PrefixVideo,
-}
-
-var DataTypeMap = map[Prefix]models.DataType{
-	PrefixSimple: models.Simple,
-	PrefixJSON:   models.JSON,
-	PrefixAudio:  models.Audio,
-	PrefixVideo:  models.Video,
-}
-
 type DataKeeper interface {
-	Add(data models.Data) ([]byte, error)
+	Add(data models.Data) (models.ID, error)
 	Read(key []byte) (models.Data, error)
 	Delete(key []byte) error
 
@@ -67,27 +44,30 @@ func openDB(opt badger.Options) *badger.DB {
 	return db
 }
 
-func (s *Storage) Add(data models.Data) ([]byte, error) {
-	key := composeKey(data.ID(), data.Type())
+func (s *Storage) Add(data models.Data) (models.ID, error) {
+	_, err := s.Read(data.ID())
+	if err == nil {
+		return nil, errors.Errorf("key already is used")
+	}
 
-	err := s.db.Update(func(txn *badger.Txn) error {
+	err = s.db.Update(func(txn *badger.Txn) error {
 		val, err := data.MarshalBinary()
 		if err != nil {
 			return err
 		}
 
-		return txn.Set(key, val)
+		return txn.Set(data.ID(), val)
 	})
 
 	if err != nil {
 		return nil, errors.New("writing data finished with error: " + err.Error())
 	}
 
-	return key, nil
+	return data.ID(), nil
 }
 
 func (s *Storage) Read(key []byte) (models.Data, error) {
-	dt, err := DataTypeFromKey(key)
+	dt, err := models.DataTypeFromID(key)
 	if err != nil {
 		return nil, err
 	}
@@ -126,22 +106,4 @@ func (s *Storage) Delete(key []byte) error {
 
 func (s *Storage) Close() error {
 	return s.db.Close()
-}
-
-func composeKey(hash32 models.Hash32, dataType models.DataType) (key []byte) {
-	prefix := []byte(DataPrefixMap[dataType])
-
-	key = append(key, prefix...)
-	key = append(key, hash32[:]...)
-
-	return
-}
-
-func DataTypeFromKey(key []byte) (models.DataType, error) {
-	prefix := Prefix(key[:len(key)-32])
-	dt, ok := DataTypeMap[prefix]
-	if !ok {
-		return dt, errors.Errorf("can't get data type from key")
-	}
-	return dt, nil
 }
