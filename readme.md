@@ -1,1 +1,1 @@
-data storage and streaming system
+data storage and streaming service

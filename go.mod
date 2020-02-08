@@ -11,5 +11,6 @@ require (
 	github.com/qiangxue/fasthttp-routing v0.0.0-20160225050629-6ccdc2a18d87
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.4.0
+	github.com/urfave/cli/v2 v2.1.1
 	github.com/valyala/fasthttp v1.9.0
 )

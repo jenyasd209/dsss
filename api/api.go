@@ -54,7 +54,7 @@ func (f *fileRoute) Add(fileName string, content []byte) (models.ID, error) {
 	return resp.Body(), nil
 }
 
-func (f *fileRoute) Get(key models.ID) (models.Data, error) {
+func (f *fileRoute) Get(key []byte) (models.Data, error) {
 	resp, err := f.doRequest(f.route, "GET", nil, map[string][]byte{"key": key})
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (f *fileRoute) Get(key models.ID) (models.Data, error) {
 	return obj, nil
 }
 
-func (f *fileRoute) Delete(key models.ID) ([]byte, error) {
+func (f *fileRoute) Delete(key []byte) ([]byte, error) {
 	resp, err := f.doRequest(f.route, "DELETE", nil, map[string][]byte{"key": key})
 	if err != nil {
 		return nil, err
