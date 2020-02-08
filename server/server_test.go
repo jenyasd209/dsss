@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	db "github.com/iorhachovyevhen/dsss/storage"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -11,7 +10,7 @@ import (
 	"github.com/iorhachovyevhen/dsss/models"
 )
 
-var route = "http://localhost:8080/files"
+var route = "http://localhost:8080/file"
 
 func TestAdd(t *testing.T) {
 	var file = models.NewSimpleData(
@@ -67,7 +66,7 @@ func TestGet(t *testing.T) {
 	key := string(resp.Body())
 
 	req = fasthttp.AcquireRequest()
-	req.SetRequestURI(route + "/")
+	req.SetRequestURI(route)
 	req.Header.SetMethod("GET")
 
 	req.URI().QueryArgs().Add("key", key)
@@ -82,7 +81,6 @@ func TestGet(t *testing.T) {
 
 	obtainedData := models.NewEmptyData(dt)
 	err = obtainedData.UnmarshalBinary(resp.Body())
-	fmt.Println(resp.Body())
 	require.Nil(t, err, err)
 	require.Equal(t, testFile, obtainedData)
 	require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
@@ -113,29 +111,40 @@ func TestDelete(t *testing.T) {
 	require.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
 	require.NotNil(t, resp.Body())
 
-	key := string(resp.Body())
+	key := resp.Body()
 
 	req = fasthttp.AcquireRequest()
-	req.SetRequestURI(route + "/")
-	req.Header.SetMethod("DELETE")
+	req.SetRequestURI(route)
+	req.Header.SetMethod("GET")
+	req.Header.Add("Content-Type", "application/json")
 
-	req.URI().QueryArgs().Add("key", key)
+	req.URI().QueryArgs().Add("key", string(key))
 
 	resp = fasthttp.AcquireResponse()
 
 	err = client.Do(req, resp)
 	require.Nil(t, err, err)
 
-	deletedKey := string(resp.Body())
-	require.Equal(t, key, deletedKey)
+	dt, err := db.DataTypeFromKey(key)
+	require.Nil(t, err, err)
+
+	obtainedData := models.NewEmptyData(dt)
+	err = obtainedData.UnmarshalBinary(resp.Body())
+	require.Nil(t, err, err)
+	require.Equal(t, testFile, obtainedData)
 	require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
 
-	req.SetRequestURI(route + "/")
-	req.Header.SetMethod("GET")
+	req = fasthttp.AcquireRequest()
+	req.SetRequestURI(route)
+	req.Header.SetMethod("DELETE")
 
-	req.URI().QueryArgs().Add("key", key)
+	req.URI().QueryArgs().Add("key", string(key))
+
+	resp = fasthttp.AcquireResponse()
 
 	err = client.Do(req, resp)
 	require.Nil(t, err, err)
-	require.Equal(t, fasthttp.StatusNotFound, resp.StatusCode())
+
+	require.Equal(t, resp.Body(), key)
+	require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
 }
