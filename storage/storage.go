@@ -7,6 +7,12 @@ import (
 	"github.com/iorhachovyevhen/dsss/models"
 )
 
+var (
+	ErrIDNotFound    = errors.New("ID not found")
+	ErrAlreadyUsedID = errors.New("ID already is used")
+	ErrInvalidID     = errors.New("Invalid ID")
+)
+
 type DataKeeper interface {
 	Add(data models.Data) (models.ID, error)
 	Read(key []byte) (models.Data, error)
@@ -47,7 +53,7 @@ func openDB(opt badger.Options) *badger.DB {
 func (s *Storage) Add(data models.Data) (models.ID, error) {
 	_, err := s.Read(data.ID())
 	if err == nil {
-		return nil, errors.Errorf("key already is used")
+		return nil, ErrAlreadyUsedID
 	}
 
 	err = s.db.Update(func(txn *badger.Txn) error {
@@ -71,6 +77,7 @@ func (s *Storage) Read(key []byte) (models.Data, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	data := models.NewEmptyData(dt)
 
 	err = s.db.View(func(txn *badger.Txn) error {
@@ -87,6 +94,9 @@ func (s *Storage) Read(key []byte) (models.Data, error) {
 	})
 
 	if err != nil {
+		if err == badger.ErrKeyNotFound {
+			return nil, ErrIDNotFound
+		}
 		return nil, errors.New("reading finished with error: " + err.Error())
 	}
 
@@ -94,7 +104,12 @@ func (s *Storage) Read(key []byte) (models.Data, error) {
 }
 
 func (s *Storage) Delete(key []byte) error {
-	err := s.db.Update(func(txn *badger.Txn) error {
+	_, err := s.Read(key)
+	if err == ErrIDNotFound {
+		return err
+	}
+
+	err = s.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete(key)
 	})
 	if err != nil {
