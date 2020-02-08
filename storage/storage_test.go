@@ -81,6 +81,9 @@ func TestStorage_Delete(t *testing.T) {
 	data, err := storage.Read(obtainedKey)
 	assert.NotNil(t, err, err)
 	assert.Nil(t, data)
+
+	err = storage.Delete(obtainedKey)
+	assert.Equal(t, ErrIDNotFound, err)
 }
 
 func TestStorage_AddConcurrent(t *testing.T) {
@@ -177,7 +180,7 @@ func randomData(count int) (datas []models.Data) {
 }
 
 func randomContent() []byte {
-	b := make([]byte, 4)
+	b := make([]byte, 10)
 	rand.Read(b)
 
 	return b
