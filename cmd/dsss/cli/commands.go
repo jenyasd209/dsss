@@ -2,19 +2,19 @@ package cli
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"path"
-
 	api2 "github.com/iorhachovyevhen/dsss/api"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
+	"log"
+	"os"
+	"path"
+	"path/filepath"
 )
 
 var (
-	cliPath   string
-	idFile    string
-	filesPath string
+	cliPath      string
+	historyFile  string
+	uploadedPath string
 )
 var addrs = "http://localhost:8080"
 
@@ -27,16 +27,23 @@ func init() {
 	}
 
 	cliPath = path.Join(home, ".dsss_cli")
-	filesPath = path.Join(cliPath, "uploaded_files")
+	uploadedPath = path.Join(cliPath, "uploaded_files")
 
-	if _, err := os.Stat(filesPath); err != nil {
-		err = os.Mkdir(filesPath, os.ModePerm)
+	if _, err := os.Stat(uploadedPath); err != nil {
+		err = os.Mkdir(uploadedPath, os.ModePerm)
 		if err != nil {
-			log.Fatalf("can't create dir by path: %v", filesPath)
+			log.Fatalf("can't create dir by path: %v", uploadedPath)
 		}
 	}
 
-	idFile = path.Join(cliPath, "id_list.txt")
+	historyFile = path.Join(cliPath, "id_list.txt")
+
+	if _, err := os.Stat(historyFile); err != nil {
+		_, err = os.Create(historyFile)
+		if err != nil {
+			log.Fatalf("can't create file by path: %v", historyFile)
+		}
+	}
 }
 
 var RootApp = &cli.App{
@@ -48,16 +55,12 @@ var RootApp = &cli.App{
 	Commands: cli.Commands{
 		fileCmd,
 	},
-	Flags:           nil,
-	CommandNotFound: nil,
-	Authors:         nil,
-	Copyright:       "steal it, no one want use it",
-	BashComplete: func(ctx *cli.Context) {
-		fmt.Println("file")
-	},
+	Flags:                nil,
+	CommandNotFound:      nil,
+	Authors:              nil,
+	Copyright:            "steal it, no one want use it",
+	EnableBashCompletion: true,
 }
-
-var fileTasks = []string{"add", "get", "remove", "list"}
 
 var fileCmd = &cli.Command{
 	Name:  "file",
@@ -66,15 +69,7 @@ var fileCmd = &cli.Command{
 		addCmd,
 		getCmd,
 		removeCmd,
-		listCmd,
-	},
-	BashComplete: func(ctx *cli.Context) {
-		if ctx.NArg() > 0 {
-			return
-		}
-		for _, t := range fileTasks {
-			fmt.Println(t)
-		}
+		hystoryCmd,
 	},
 }
 
@@ -103,7 +98,7 @@ var addCmd = &cli.Command{
 
 		fmt.Printf("File id: %v\n", id)
 
-		return newFileId(string(id))
+		return writeToHistoryFile(filename, id.String()) // newFileId(record)
 	},
 }
 
@@ -111,18 +106,18 @@ var getCmd = &cli.Command{
 	Name:        "get",
 	Aliases:     []string{"download"},
 	Usage:       "dsss file get <file_id> <dst_path>",
-	Description: "upload a new file",
+	Description: "upload a new file. If <dst_path> is empty file will be uploaded to $HOME/.dsss_cli/uploaded_files",
 	Category:    "file",
 	Action: func(ctx *cli.Context) error {
-		if ctx.NArg() != 1 || ctx.NArg() != 2 {
-			return errors.Errorf("at least 1 argument needed, but got: %v", ctx.NArg())
+		if ctx.NArg() != 1 && ctx.NArg() != 2 {
+			return errors.Errorf("Needed 2 argument (second can be default '%s'), but got: %v", uploadedPath, ctx.NArg())
 		}
 
 		id := ctx.Args().Get(0)
 
-		dst := "/"
-		if ctx.Args().Get(1) != "" {
-			dst = filesPath
+		dst := ctx.Args().Get(1)
+		if dst == "" {
+			dst = uploadedPath
 		}
 
 		file, err := api.Files().Get([]byte(id))
@@ -137,7 +132,9 @@ var getCmd = &cli.Command{
 			return err
 		}
 
-		fmt.Printf("File path: %v\n", dst)
+		abs, _ := filepath.Abs(p)
+
+		fmt.Printf("File path: %s\n", abs)
 
 		return nil
 	},
@@ -156,39 +153,45 @@ var removeCmd = &cli.Command{
 
 		id := ctx.Args().Get(0)
 
-		k, err := api.Files().Delete([]byte(id))
+		_, err := api.Files().Delete([]byte(id))
 		if err != nil {
 			return err
 		}
 
-		err = deleteFromFile(string(k))
+		err = deleteFromHistoryFile(id)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("ID of deleted file: %v\n", string(k))
+		fmt.Printf("ID of deleted file: %v\n", id)
 
 		return nil
 	},
 }
 
-var listCmd = &cli.Command{
-	Name:        "list",
+var hystoryCmd = &cli.Command{
+	Name:        "history",
 	Aliases:     []string{"show"},
 	Usage:       "dsss file list",
-	Description: "return ids of uploaded files",
+	Description: "return file uploading and deleting history",
 	Category:    "file",
 	Action: func(ctx *cli.Context) error {
 		if ctx.NArg() != 0 {
 			return errors.Errorf("arguments needed: 0, but got: %v", ctx.NArg())
 		}
 
-		_, ids, err := readFile(idFile)
+		_, ids, err := readFile(historyFile)
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(string(ids))
+		list := string(ids)
+
+		if list == "" || list == "\n" {
+			return errors.New("No one uploaded file")
+		}
+
+		fmt.Println(list)
 
 		return nil
 	},

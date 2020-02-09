@@ -2,8 +2,12 @@ package cli
 
 import (
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 func readFile(filePath string) (filename string, content []byte, err error) {
@@ -11,6 +15,7 @@ func readFile(filePath string) (filename string, content []byte, err error) {
 	if err != nil {
 		return
 	}
+	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
@@ -22,7 +27,7 @@ func readFile(filePath string) (filename string, content []byte, err error) {
 		return
 	}
 
-	filename = file.Name()
+	filename = filepath.Base(filePath)
 	content = make([]byte, stat.Size())
 	_, err = file.Read(content)
 
@@ -34,6 +39,7 @@ func writeFile(path string, content []byte) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	_, err = file.Write(content)
 	if err != nil {
@@ -43,17 +49,30 @@ func writeFile(path string, content []byte) error {
 	return nil
 }
 
-func newFileId(id string) error {
-	return writeFile(idFile, []byte(id+"\n"))
+func writeToHistoryFile(filename, id string) error {
+	t := time.Now()
+	uploadDate := fmt.Sprintf("%d-%02d-%02d at %02d:%02d:%02d",
+		t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second())
+
+	record := "uploaded: " + uploadDate + "\t" + id + "\t" + filename + "\n"
+
+	return writeFile(historyFile, []byte(record))
 }
 
-func deleteFromFile(s string) error {
-	_, content, err := readFile(idFile)
+func deleteFromHistoryFile(s string) error {
+	_, content, err := readFile(historyFile)
 	if err != nil {
 		return err
 	}
 
-	s = strings.Trim(s, string(content))
+	t := time.Now()
+	deletedDate := fmt.Sprintf("%d-%02d-%02d at %02d:%02d:%02d",
+		t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second())
+	newVal := s + "\t deleted: " + deletedDate + "\n"
 
-	return writeFile(idFile, []byte(s))
+	newContent := strings.Replace(string(content), s+"\n", newVal, -1)
+
+	return ioutil.WriteFile(historyFile, []byte(newContent), 0666)
 }
