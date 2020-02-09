@@ -98,7 +98,7 @@ var addCmd = &cli.Command{
 
 		fmt.Printf("File id: %v\n", id)
 
-		return writeToHistoryFile(filename, id.String()) // newFileId(record)
+		return writeToHistoryFile(filename, id.String())
 	},
 }
 
