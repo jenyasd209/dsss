@@ -66,6 +66,51 @@ func TestDsssStream_File(t *testing.T) {
 	assert.Nil(t, err, err)
 }
 
+func TestReader_Read(t *testing.T) {
+	content := []byte("content")
+	r := NewReader(content)
+
+	var obtained []byte
+	for {
+		b := make([]byte, 1)
+		_, err := r.Read(b)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+		}
+		require.Nil(t, err, err)
+
+		obtained = append(obtained, b...)
+	}
+
+	assert.Equal(t, content, obtained)
+}
+
+func TestWriter_Write(t *testing.T) {
+	content := []byte("content")
+	r := NewReader(content)
+
+	var got []byte
+	w := NewWriter(got)
+
+	for {
+		b := make([]byte, 1)
+		_, err := r.Read(b)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+		}
+		require.Nil(t, err, err)
+
+		_, err = w.Write(b)
+		require.Nil(t, err, err)
+	}
+
+	assert.Equal(t, content, w.data)
+}
+
 func read(f io.Reader) (content []byte, err error) {
 	buf := make([]byte, 1)
 	for {
@@ -80,4 +125,8 @@ func read(f io.Reader) (content []byte, err error) {
 	}
 
 	return content, io.EOF
+}
+
+func TestJSONDecode(t *testing.T) {
+	//json.NewDecoder()
 }
