@@ -30,13 +30,13 @@ func init() {
 	uploadedPath = path.Join(cliPath, "uploaded_files")
 
 	if _, err := os.Stat(uploadedPath); err != nil {
-		err = os.Mkdir(uploadedPath, os.ModePerm)
+		err = os.MkdirAll(uploadedPath, os.ModePerm)
 		if err != nil {
 			log.Fatalf("can't create dir by path: %v", uploadedPath)
 		}
 	}
 
-	historyFile = path.Join(cliPath, "id_list.txt")
+	historyFile = path.Join(cliPath, "history.txt")
 
 	if _, err := os.Stat(historyFile); err != nil {
 		_, err = os.Create(historyFile)
