@@ -2,7 +2,10 @@ package storage
 
 import (
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -12,9 +15,15 @@ import (
 )
 
 func TestNewStorageWithOptions(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "badger")
+	require.Nil(t, err, err)
+
+	defer os.RemoveAll(tmpDir)
+
+	tmpFile := filepath.Join(tmpDir, "test")
 	opt := NewOptions().
-		WithDir("/tmp/badger").
-		WithValueDir("/tmp/badger").
+		WithDir(tmpFile).
+		WithValueDir(tmpFile).
 		WithValueLogFileSize(2 << 20)
 
 	storage := NewStorageWithOptions(opt)
@@ -40,7 +49,13 @@ func TestStorage_Add(t *testing.T) {
 }
 
 func TestStorage_Read(t *testing.T) {
-	storage := NewDefaultStorage("/tmp/badger")
+	tmpDir, err := ioutil.TempDir("", "badger")
+	require.Nil(t, err, err)
+
+	defer os.RemoveAll(tmpDir)
+
+	tmpFile := filepath.Join(tmpDir, "test")
+	storage := NewDefaultStorage(tmpFile)
 	defer storage.Close()
 
 	expectedData := models.NewSimpleData(
@@ -55,13 +70,19 @@ func TestStorage_Read(t *testing.T) {
 	require.Nil(t, err, err)
 	assert.Equal(t, expectedData.ID(), obtainedKey)
 
-	data, err := storage.Read(obtainedKey)
+	data := models.NewEmptyData(expectedData.DataType)
+	err = storage.Read(obtainedKey, data)
 	assert.Nil(t, err, err)
 	assert.Equal(t, expectedData, data)
 }
 
 func TestStorage_Delete(t *testing.T) {
-	storage := NewDefaultStorage("/tmp/badger")
+	tmpDir, err := ioutil.TempDir("", "badgerTmp")
+	require.Nil(t, err, err)
+
+	defer os.RemoveAll(tmpDir)
+
+	storage := NewDefaultStorage(tmpDir)
 	defer storage.Close()
 
 	expectedData := models.NewSimpleData(
@@ -73,46 +94,66 @@ func TestStorage_Delete(t *testing.T) {
 	)
 
 	obtainedKey, err := storage.Add(expectedData)
-	assert.Nil(t, err, err)
+	require.Nil(t, err, err)
+	require.NotNil(t, obtainedKey)
+	assert.Equal(t, expectedData.ID(), obtainedKey)
 
 	err = storage.Delete(obtainedKey)
 	assert.Nil(t, err, err)
 
-	data, err := storage.Read(obtainedKey)
+	data := models.NewEmptyData(expectedData.DataType)
+	err = storage.Read(obtainedKey, data)
 	assert.NotNil(t, err, err)
-	assert.Nil(t, data)
+	assert.Equal(t, models.NewEmptyData(expectedData.DataType), data)
 
 	err = storage.Delete(obtainedKey)
 	assert.Equal(t, ErrIDNotFound, err)
 }
 
 func TestStorage_AddConcurrent(t *testing.T) {
-	storage := NewDefaultStorage("/tmp/badger")
+	tmpDir, err := ioutil.TempDir("", "badger")
+	require.Nil(t, err, err)
+
+	defer os.RemoveAll(tmpDir)
+
+	tmpFile := filepath.Join(tmpDir, "test")
+	storage := NewDefaultStorage(tmpFile)
 	defer storage.Close()
 
-	datas := randomData(10)
+	datas := sameData(10, models.Audio)
 
-	var title string
-	var wg sync.WaitGroup
+	errCount := 0
+	wg := sync.WaitGroup{}
 	for _, data := range datas {
 		wg.Add(1)
 		go func() {
-			_, _ = storage.Add(data)
-			title = data.Title()
+			_, err := storage.Add(data)
+			if err != nil {
+				println(err.Error())
+				errCount++
+			}
 
 			wg.Done()
 		}()
 	}
 
 	wg.Wait()
+	assert.Equal(t, len(datas)-1, errCount)
 
-	obtainedData, err := storage.Read(datas[0].ID())
+	obtainedData := models.NewEmptyData(datas[0].Type())
+	err = storage.Read(datas[0].ID(), obtainedData)
 	require.Nil(t, err, err)
-	assert.Equal(t, title, obtainedData.Title())
+	require.Nil(t, err, err)
 }
 
 func TestStorage_DeleteConcurrent(t *testing.T) {
-	storage := NewDefaultStorage("/tmp/badger")
+	tmpDir, err := ioutil.TempDir("", "badger")
+	require.Nil(t, err, err)
+
+	defer os.RemoveAll(tmpDir)
+
+	tmpFile := filepath.Join(tmpDir, "test")
+	storage := NewDefaultStorage(tmpFile)
 	defer storage.Close()
 
 	expectedData := models.NewSimpleData(
@@ -126,21 +167,28 @@ func TestStorage_DeleteConcurrent(t *testing.T) {
 	obtainedKey, err := storage.Add(expectedData)
 	assert.Nil(t, err, err)
 
-	var wg sync.WaitGroup
+	errCount := 0
+	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
-			_ = storage.Delete(obtainedKey)
+			err := storage.Delete(obtainedKey)
+			if err != nil {
+				println(err.Error())
+				errCount++
+			}
 
 			wg.Done()
 		}()
 	}
 
 	wg.Wait()
+	assert.Equal(t, 9, errCount)
 
-	data, err := storage.Read(obtainedKey)
+	data := models.NewEmptyData(expectedData.DataType)
+	err = storage.Read(obtainedKey, data)
 	assert.NotNil(t, err, err)
-	assert.Nil(t, data)
+	assert.Equal(t, models.NewEmptyData(expectedData.DataType), data)
 }
 
 func TestDataTypeFromKey(t *testing.T) {
@@ -152,31 +200,34 @@ func TestDataTypeFromKey(t *testing.T) {
 		[]byte("content"),
 	)
 
-	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			dt, err := models.DataTypeFromID(data.ID())
-			assert.Nil(t, err)
-			assert.Equal(t, data.DataType, dt)
-			wg.Done()
-		}()
+		dt, err := models.DataTypeFromID(data.ID())
+		assert.Nil(t, err)
+		assert.Equal(t, data.DataType, dt)
 	}
 }
 
-func randomData(count int) (datas []models.Data) {
+func sameData(count int, dataType models.DataType) (datas []models.Data) {
 	content := randomContent()
 
 	for i := 0; i < count; i++ {
-		datas = append(datas, models.NewSimpleData(
-			models.MetaData{
-				Title:    "test.txt",
-				DataType: models.Audio,
-			},
-			content,
-		))
+		datas = append(datas, randomData(content, dataType))
 	}
 	return
+}
+
+func randomData(content models.Content, dataType models.DataType) (data models.Data) {
+	if content == nil {
+		content = randomContent()
+	}
+
+	return models.NewSimpleData(
+		models.MetaData{
+			Title:    "test",
+			DataType: dataType,
+		},
+		content,
+	)
 }
 
 func randomContent() []byte {
