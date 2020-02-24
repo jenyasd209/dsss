@@ -1,7 +1,8 @@
 package server
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+	"github.com/iorhachovyevhen/dsss/storage"
 	"log"
 
 	"github.com/iorhachovyevhen/dsss/models"
@@ -12,19 +13,41 @@ import (
 var ErrorBadID = errors.New("wrong id")
 var ErrorBadJSON = errors.New("bad json")
 
-func router() *routing.Router {
-	log.Println("Create router...")
+func InitRouter(storage storage.DataKeeper) *Router {
+	log.Println("Set up router...")
 
-	router := routing.New()
-	router.Group("/file").
-		Post("", addFile).
-		Get(getFile).
-		Delete(deleteFile)
+	router := &Router{
+		routing.New(),
+		storage,
+	}
+
+	InitFileRouter(router)
 
 	return router
 }
 
-func addFile(ctx *routing.Context) error {
+type Router struct {
+	*routing.Router
+	storage storage.DataKeeper
+}
+
+func InitFileRouter(router *Router) {
+	log.Println("Init file router...")
+
+	fr := FileRouter{router}
+
+	fr.Group("/file").
+		Post("", fr.Post).
+		Get(fr.Get).
+		Delete(fr.Delete)
+}
+
+type FileRouter struct {
+	*Router
+}
+
+//Post - file endpoint that add a new file
+func (r *FileRouter) Post(ctx *routing.Context) error {
 	dt, err := dataTypeFromJSON(ctx.Request.Body())
 	if err != nil {
 		makeResponse(&ctx.Response,
@@ -47,7 +70,7 @@ func addFile(ctx *routing.Context) error {
 		return nil
 	}
 
-	key, err := storage.Add(data)
+	key, err := r.storage.Add(data)
 	if err != nil {
 		makeResponse(&ctx.Response,
 			fasthttp.StatusBadRequest,
@@ -62,7 +85,8 @@ func addFile(ctx *routing.Context) error {
 	return nil
 }
 
-func getFile(ctx *routing.Context) error {
+//Get - file endpoint that add a new file
+func (r *FileRouter) Get(ctx *routing.Context) error {
 	key := ctx.QueryArgs().Peek("key")
 	if key == nil {
 		makeResponse(&ctx.Response,
@@ -73,7 +97,19 @@ func getFile(ctx *routing.Context) error {
 		return nil
 	}
 
-	data, err := storage.Read(key)
+	dt, err := models.DataTypeFromID(key)
+	if err != nil {
+		makeResponse(&ctx.Response,
+			fasthttp.StatusBadRequest,
+			map[string]string{"Content-Type": "text/plain"},
+			[]byte(err.Error()),
+		)
+		return nil
+	}
+
+	data := models.NewEmptyData(dt)
+
+	err = r.storage.Read(key, data)
 	if err != nil {
 		makeResponse(&ctx.Response,
 			fasthttp.StatusNotFound,
@@ -98,7 +134,8 @@ func getFile(ctx *routing.Context) error {
 	return nil
 }
 
-func deleteFile(ctx *routing.Context) error {
+//Delete - file endpoint that add a new file
+func (r *FileRouter) Delete(ctx *routing.Context) error {
 	key := ctx.QueryArgs().Peek("key")
 	if key == nil {
 		makeResponse(&ctx.Response,
@@ -109,7 +146,7 @@ func deleteFile(ctx *routing.Context) error {
 		return nil
 	}
 
-	err := storage.Delete(key)
+	err := r.storage.Delete(key)
 	if err != nil {
 		makeResponse(&ctx.Response,
 			fasthttp.StatusBadRequest,
