@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/valyala/fasthttp"
 
@@ -13,150 +14,143 @@ import (
 
 var route = "http://localhost:8080/file"
 
-func TestAdd(t *testing.T) {
-	var testFile = models.NewSimpleData(
-		models.MetaData{
-			Title:    "test",
-			DataType: models.Audio,
-		},
-		randomContent(),
-	)
+func TestNewStorageServer(t *testing.T) {
+	s := NewStorageServer()
+	go func() {
+		if err := s.Start(); err != nil {
+			panic(err)
+		}
+	}()
 
-	data, err := testFile.MarshalBinary()
-	require.Nil(t, err, err)
+	time.Sleep(time.Second)
 
-	req := fasthttp.AcquireRequest()
-	req.Header.SetMethod("POST")
-	req.SetRequestURI(route)
-	req.SetBody(data)
+	t.Run("FilePost", func(t *testing.T) {
+		var testFile = models.NewDataWithContent(models.Simple, randomContent())
 
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp)
+		data, err := testFile.MarshalBinary()
+		require.Nil(t, err, err)
 
-	client := &fasthttp.Client{}
-	err = client.Do(req, resp)
-	require.Nil(t, err, err)
-	assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
-	assert.Equal(t, string(resp.Body()), testFile.ID().String())
-}
+		req := fasthttp.AcquireRequest()
+		req.Header.SetMethod("POST")
+		req.SetRequestURI(route)
+		req.SetBody(data)
 
-func TestGet(t *testing.T) {
-	var testFile = models.NewSimpleData(
-		models.MetaData{
-			Title:    "test",
-			DataType: models.Simple,
-		},
-		randomContent(),
-	)
+		resp := fasthttp.AcquireResponse()
+		defer fasthttp.ReleaseResponse(resp)
 
-	data, err := testFile.MarshalBinary()
-	require.Nil(t, err, err)
+		client := &fasthttp.Client{}
+		err = client.Do(req, resp)
+		require.Nil(t, err, err)
+		assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
+		assert.Equal(t, string(resp.Body()), testFile.ID().String())
+	})
 
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
+	t.Run("FileGet", func(t *testing.T) {
+		var testFile = models.NewDataWithContent(models.Video, randomContent())
 
-	req.Header.SetMethod("POST")
-	req.Header.Add("Content-Type", "application/json")
-	req.SetRequestURI(route)
-	req.SetBody(data)
+		data, err := testFile.MarshalBinary()
+		require.Nil(t, err, err)
 
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp)
+		req := fasthttp.AcquireRequest()
+		defer fasthttp.ReleaseRequest(req)
 
-	client := &fasthttp.Client{}
-	err = client.Do(req, resp)
-	require.Nil(t, err, err)
-	assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
-	assert.Equal(t, string(resp.Body()), testFile.ID().String())
+		req.Header.SetMethod("POST")
+		req.Header.Add("Content-Type", "application/json")
+		req.SetRequestURI(route)
+		req.SetBody(data)
 
-	key := string(resp.Body())
+		resp := fasthttp.AcquireResponse()
+		defer fasthttp.ReleaseResponse(resp)
 
-	req = fasthttp.AcquireRequest()
-	req.SetRequestURI(route)
-	req.Header.SetMethod("GET")
+		client := &fasthttp.Client{}
+		err = client.Do(req, resp)
+		require.Nil(t, err, err)
+		assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
+		assert.Equal(t, string(resp.Body()), testFile.ID().String())
 
-	req.URI().QueryArgs().Add("key", key)
+		key := string(resp.Body())
 
-	resp = fasthttp.AcquireResponse()
+		req = fasthttp.AcquireRequest()
+		req.SetRequestURI(route)
+		req.Header.SetMethod("GET")
 
-	err = client.Do(req, resp)
-	require.Nil(t, err, err)
+		req.URI().QueryArgs().Add("key", key)
 
-	dt, err := models.DataTypeFromID([]byte(key))
-	require.Nil(t, err, err)
+		resp = fasthttp.AcquireResponse()
 
-	obtainedData := models.NewEmptyData(dt)
-	err = obtainedData.UnmarshalBinary(resp.Body())
-	require.Nil(t, err, err)
-	require.Equal(t, testFile, obtainedData)
-	require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
-}
+		err = client.Do(req, resp)
+		require.Nil(t, err, err)
 
-func TestDelete(t *testing.T) {
-	var testFile = models.NewSimpleData(
-		models.MetaData{
-			Title:    "test",
-			DataType: models.Simple,
-		},
-		randomContent(),
-	)
+		dt, err := models.DataTypeFromID([]byte(key))
+		require.Nil(t, err, err)
 
-	data, err := testFile.MarshalBinary()
-	require.Nil(t, err, err)
+		obtainedData := models.NewEmptyData(dt)
+		err = obtainedData.UnmarshalBinary(resp.Body())
+		require.Nil(t, err, err)
+		require.Equal(t, testFile, obtainedData)
+		require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
+	})
 
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
+	t.Run("FileDelete", func(t *testing.T) {
+		var testFile = models.NewDataWithContent(models.JSON, randomContent())
 
-	req.Header.SetMethod("POST")
-	req.Header.Add("Content-Type", "application/json")
-	req.SetRequestURI(route)
-	req.SetBody(data)
+		data, err := testFile.MarshalBinary()
+		require.Nil(t, err, err)
 
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp)
+		req := fasthttp.AcquireRequest()
+		defer fasthttp.ReleaseRequest(req)
 
-	client := &fasthttp.Client{}
-	err = client.Do(req, resp)
-	require.Nil(t, err, err)
-	assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
-	assert.Equal(t, string(resp.Body()), testFile.ID().String())
+		req.Header.SetMethod("POST")
+		req.Header.Add("Content-Type", "application/json")
+		req.SetRequestURI(route)
+		req.SetBody(data)
 
-	key := resp.Body()
+		resp := fasthttp.AcquireResponse()
+		defer fasthttp.ReleaseResponse(resp)
 
-	req = fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
+		client := &fasthttp.Client{}
+		err = client.Do(req, resp)
+		require.Nil(t, err, err)
+		assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
+		assert.Equal(t, string(resp.Body()), testFile.ID().String())
 
-	req.SetRequestURI(route)
-	req.Header.SetMethod("GET")
+		key := resp.Body()
 
-	req.URI().QueryArgs().Add("key", string(key))
+		req = fasthttp.AcquireRequest()
+		defer fasthttp.ReleaseRequest(req)
 
-	resp = fasthttp.AcquireResponse()
+		req.SetRequestURI(route)
+		req.Header.SetMethod("GET")
 
-	err = client.Do(req, resp)
-	require.Nil(t, err, err)
+		req.URI().QueryArgs().Add("key", string(key))
 
-	dt, err := models.DataTypeFromID(key)
-	require.Nil(t, err, err)
+		resp = fasthttp.AcquireResponse()
 
-	obtainedData := models.NewEmptyData(dt)
-	err = obtainedData.UnmarshalBinary(resp.Body())
-	require.Nil(t, err, err)
-	require.Equal(t, testFile, obtainedData)
-	require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
+		err = client.Do(req, resp)
+		require.Nil(t, err, err)
 
-	req = fasthttp.AcquireRequest()
-	req.SetRequestURI(route)
-	req.Header.SetMethod("DELETE")
+		dt, err := models.DataTypeFromID(key)
+		require.Nil(t, err, err)
 
-	req.URI().QueryArgs().Add("key", string(key))
+		obtainedData := models.NewEmptyData(dt)
+		err = obtainedData.UnmarshalBinary(resp.Body())
+		require.Nil(t, err, err)
+		require.Equal(t, testFile, obtainedData)
+		require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
 
-	resp = fasthttp.AcquireResponse()
+		req = fasthttp.AcquireRequest()
+		req.SetRequestURI(route)
+		req.Header.SetMethod("DELETE")
 
-	err = client.Do(req, resp)
-	require.Nil(t, err, err)
-	require.Equal(t, resp.Body(), key)
-	require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
+		req.URI().QueryArgs().Add("key", string(key))
+
+		resp = fasthttp.AcquireResponse()
+
+		err = client.Do(req, resp)
+		require.Nil(t, err, err)
+		require.Equal(t, resp.Body(), key)
+		require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
+	})
 }
 
 func TestAddSame(t *testing.T) {
