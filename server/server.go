@@ -48,5 +48,9 @@ func (s *StorageServer) Start() error {
 }
 
 func (s *StorageServer) Shutdown() error {
+	if err := s.storage.Close(); err != nil {
+		return err
+	}
+
 	return s.server.Shutdown()
 }

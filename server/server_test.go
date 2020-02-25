@@ -21,6 +21,7 @@ func TestNewStorageServer(t *testing.T) {
 			panic(err)
 		}
 	}()
+	defer s.Shutdown()
 
 	time.Sleep(time.Second)
 
@@ -151,56 +152,88 @@ func TestNewStorageServer(t *testing.T) {
 		require.Equal(t, resp.Body(), key)
 		require.Equal(t, fasthttp.StatusOK, resp.StatusCode())
 	})
+
+	t.Run("AddSame", func(t *testing.T) {
+		content := randomContent()
+		var testFile = models.NewSimpleData(
+			models.MetaData{
+				Title:    "test",
+				DataType: models.Audio,
+			},
+			content,
+		)
+
+		var sameFile = models.NewSimpleData(
+			models.MetaData{
+				Title:    "test",
+				DataType: models.Audio,
+			},
+			content,
+		)
+
+		data, err := testFile.MarshalBinary()
+		require.Nil(t, err, err)
+
+		req := fasthttp.AcquireRequest()
+		defer fasthttp.ReleaseRequest(req)
+
+		req.Header.SetMethod("POST")
+		req.Header.SetContentType("application/json")
+		req.SetRequestURI(route)
+		req.SetBody(data)
+
+		resp := fasthttp.AcquireResponse()
+		defer fasthttp.ReleaseResponse(resp)
+
+		client := &fasthttp.Client{}
+		err = client.Do(req, resp)
+		require.Nil(t, err, err)
+		assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
+		assert.Equal(t, string(resp.Body()), testFile.ID().String())
+
+		data, err = sameFile.MarshalBinary()
+		require.Nil(t, err, err)
+		req.SetBody(data)
+
+		resp = fasthttp.AcquireResponse()
+
+		err = client.Do(req, resp)
+		require.Nil(t, err, err)
+		assert.Equal(t, fasthttp.StatusBadRequest, resp.StatusCode())
+		assert.NotNil(t, resp.Body())
+	})
 }
 
-func TestAddSame(t *testing.T) {
-	content := randomContent()
-	var testFile = models.NewSimpleData(
-		models.MetaData{
-			Title:    "test",
-			DataType: models.Audio,
-		},
-		content,
-	)
+func TestConfig(t *testing.T) {
+	t.Run("Save", func(t *testing.T) {
+		c := Config{
+			StoragePath: ".badger",
+			ServerName:  "DSSS",
+			ServerHost:  "localhost",
+			ServerPort:  ":8080",
+		}
 
-	var sameFile = models.NewSimpleData(
-		models.MetaData{
-			Title:    "test",
-			DataType: models.Audio,
-		},
-		content,
-	)
+		_, err := c.Save(".")
+		require.Nil(t, err, err)
+	})
 
-	data, err := testFile.MarshalBinary()
-	require.Nil(t, err, err)
+	t.Run("Load", func(t *testing.T) {
+		c := Config{
+			StoragePath: ".badger",
+			ServerName:  "DSSS",
+			ServerHost:  "localhost",
+			ServerPort:  ":8080",
+		}
 
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
+		p, err := c.Save(".")
+		require.Nil(t, err, err)
 
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.SetRequestURI(route)
-	req.SetBody(data)
+		c2 := Config{}
 
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp)
-
-	client := &fasthttp.Client{}
-	err = client.Do(req, resp)
-	require.Nil(t, err, err)
-	assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
-	assert.Equal(t, string(resp.Body()), testFile.ID().String())
-
-	data, err = sameFile.MarshalBinary()
-	require.Nil(t, err, err)
-	req.SetBody(data)
-
-	resp = fasthttp.AcquireResponse()
-
-	err = client.Do(req, resp)
-	require.Nil(t, err, err)
-	assert.Equal(t, fasthttp.StatusBadRequest, resp.StatusCode())
-	assert.NotNil(t, resp.Body())
+		err = c2.Load(p)
+		require.Nil(t, err, err)
+		assert.Equal(t, c, c2)
+	})
 }
 
 func randomContent() []byte {

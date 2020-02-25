@@ -15,7 +15,7 @@ var ErrEmptyServerPort = errors.New("server port is empty")
 
 func DefaultConfig() *Config {
 	return &Config{
-		StoragePath: "./badger",
+		StoragePath: ".badger",
 		ServerName:  "DSSS",
 		ServerHost:  "localhost",
 		ServerPort:  ":8080",
