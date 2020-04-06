@@ -50,33 +50,25 @@ type FileRouter struct {
 func (r *FileRouter) Post(ctx *routing.Context) error {
 	dt, err := dataTypeFromJSON(ctx.Request.Body())
 	if err != nil {
-		makeResponse(&ctx.Response,
-			fasthttp.StatusBadRequest,
-			map[string]string{"Content-Type": "text/plain"},
-			[]byte(err.Error()),
-		)
+		badRequest(&ctx.Response, []byte(err.Error()))
 		return nil
 	}
 
-	data := models.NewEmptyData(dt)
+	data, err := models.NewData(&models.MetaData{DataType: dt}, models.Content{})
+	if err != nil {
+		badRequest(&ctx.Response, []byte(ErrorBadJSON.Error()))
+		return nil
+	}
 
 	err = data.UnmarshalBinary(ctx.Request.Body())
 	if err != nil {
-		makeResponse(&ctx.Response,
-			fasthttp.StatusBadRequest,
-			map[string]string{"Content-Type": "text/plain"},
-			[]byte(ErrorBadJSON.Error()),
-		)
+		badRequest(&ctx.Response, []byte(ErrorBadJSON.Error()))
 		return nil
 	}
 
 	key, err := r.storage.Add(data)
 	if err != nil {
-		makeResponse(&ctx.Response,
-			fasthttp.StatusBadRequest,
-			map[string]string{"Content-Type": "text/plain"},
-			[]byte(err.Error()),
-		)
+		badRequest(&ctx.Response, []byte(err.Error()))
 		return nil
 	}
 
@@ -89,43 +81,31 @@ func (r *FileRouter) Post(ctx *routing.Context) error {
 func (r *FileRouter) Get(ctx *routing.Context) error {
 	key := ctx.QueryArgs().Peek("key")
 	if key == nil {
-		makeResponse(&ctx.Response,
-			fasthttp.StatusBadRequest,
-			map[string]string{"Content-Type": "text/plain"},
-			[]byte(ErrorBadID.Error()),
-		)
+		badRequest(&ctx.Response, []byte(ErrorBadID.Error()))
 		return nil
 	}
 
 	dt, err := models.DataTypeFromID(key)
 	if err != nil {
-		makeResponse(&ctx.Response,
-			fasthttp.StatusBadRequest,
-			map[string]string{"Content-Type": "text/plain"},
-			[]byte(err.Error()),
-		)
+		badRequest(&ctx.Response, []byte(err.Error()))
 		return nil
 	}
 
-	data := models.NewEmptyData(dt)
+	data, err := models.NewData(&models.MetaData{DataType: dt}, models.Content{})
+	if err != nil {
+		badRequest(&ctx.Response, []byte(ErrorBadJSON.Error()))
+		return nil
+	}
 
 	err = r.storage.Read(key, data)
 	if err != nil {
-		makeResponse(&ctx.Response,
-			fasthttp.StatusNotFound,
-			map[string]string{"Content-Type": "text/plain"},
-			[]byte(err.Error()),
-		)
+		badRequest(&ctx.Response, []byte(err.Error()))
 		return nil
 	}
 
 	body, err := data.MarshalBinary()
 	if err != nil {
-		makeResponse(&ctx.Response,
-			fasthttp.StatusBadRequest,
-			map[string]string{"Content-Type": "text/plain"},
-			[]byte(err.Error()),
-		)
+		badRequest(&ctx.Response, []byte(err.Error()))
 		return nil
 	}
 
@@ -138,21 +118,13 @@ func (r *FileRouter) Get(ctx *routing.Context) error {
 func (r *FileRouter) Delete(ctx *routing.Context) error {
 	key := ctx.QueryArgs().Peek("key")
 	if key == nil {
-		makeResponse(&ctx.Response,
-			fasthttp.StatusBadRequest,
-			map[string]string{"Content-Type": "text/plain"},
-			[]byte(ErrorBadID.Error()),
-		)
+		badRequest(&ctx.Response, []byte(ErrorBadID.Error()))
 		return nil
 	}
 
 	err := r.storage.Delete(key)
 	if err != nil {
-		makeResponse(&ctx.Response,
-			fasthttp.StatusBadRequest,
-			map[string]string{"Content-Type": "text/plain"},
-			[]byte(err.Error()),
-		)
+		badRequest(&ctx.Response, []byte(err.Error()))
 		return nil
 	}
 

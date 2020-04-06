@@ -23,10 +23,15 @@ func TestNewStorageServer(t *testing.T) {
 	}()
 	defer s.Shutdown()
 
+	client := &fasthttp.Client{}
 	time.Sleep(time.Second)
 
 	t.Run("FilePost", func(t *testing.T) {
-		var testFile = models.NewDataWithContent(models.Simple, randomContent())
+		testFile, err := models.NewData(
+			models.NewMetaData("simple", models.Simple),
+			randomContent(),
+		)
+		require.Nil(t, err, err)
 
 		data, err := testFile.MarshalBinary()
 		require.Nil(t, err, err)
@@ -39,15 +44,19 @@ func TestNewStorageServer(t *testing.T) {
 		resp := fasthttp.AcquireResponse()
 		defer fasthttp.ReleaseResponse(resp)
 
-		client := &fasthttp.Client{}
 		err = client.Do(req, resp)
 		require.Nil(t, err, err)
+
 		assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
-		assert.Equal(t, string(resp.Body()), testFile.ID().String())
+		assert.Equal(t, string(resp.Body()), testFile.Meta().GetID().String())
 	})
 
 	t.Run("FileGet", func(t *testing.T) {
-		var testFile = models.NewDataWithContent(models.Video, randomContent())
+		testFile, err := models.NewData(
+			models.NewMetaData("simple", models.Simple),
+			randomContent(),
+		)
+		require.Nil(t, err, err)
 
 		data, err := testFile.MarshalBinary()
 		require.Nil(t, err, err)
@@ -63,11 +72,10 @@ func TestNewStorageServer(t *testing.T) {
 		resp := fasthttp.AcquireResponse()
 		defer fasthttp.ReleaseResponse(resp)
 
-		client := &fasthttp.Client{}
 		err = client.Do(req, resp)
 		require.Nil(t, err, err)
 		assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
-		assert.Equal(t, string(resp.Body()), testFile.ID().String())
+		assert.Equal(t, string(resp.Body()), testFile.Meta().GetID().String())
 
 		key := string(resp.Body())
 
@@ -85,7 +93,12 @@ func TestNewStorageServer(t *testing.T) {
 		dt, err := models.DataTypeFromID([]byte(key))
 		require.Nil(t, err, err)
 
-		obtainedData := models.NewEmptyData(dt)
+		obtainedData, err := models.NewData(
+			models.NewMetaData("simple", dt),
+			[]byte(""),
+		)
+		require.Nil(t, err, err)
+
 		err = obtainedData.UnmarshalBinary(resp.Body())
 		require.Nil(t, err, err)
 		require.Equal(t, testFile, obtainedData)
@@ -93,7 +106,11 @@ func TestNewStorageServer(t *testing.T) {
 	})
 
 	t.Run("FileDelete", func(t *testing.T) {
-		var testFile = models.NewDataWithContent(models.JSON, randomContent())
+		testFile, err := models.NewData(
+			models.NewMetaData("simple", models.Simple),
+			randomContent(),
+		)
+		require.Nil(t, err, err)
 
 		data, err := testFile.MarshalBinary()
 		require.Nil(t, err, err)
@@ -109,11 +126,10 @@ func TestNewStorageServer(t *testing.T) {
 		resp := fasthttp.AcquireResponse()
 		defer fasthttp.ReleaseResponse(resp)
 
-		client := &fasthttp.Client{}
 		err = client.Do(req, resp)
 		require.Nil(t, err, err)
 		assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
-		assert.Equal(t, string(resp.Body()), testFile.ID().String())
+		assert.Equal(t, string(resp.Body()), testFile.Meta().GetID().String())
 
 		key := resp.Body()
 
@@ -133,7 +149,12 @@ func TestNewStorageServer(t *testing.T) {
 		dt, err := models.DataTypeFromID(key)
 		require.Nil(t, err, err)
 
-		obtainedData := models.NewEmptyData(dt)
+		obtainedData, err := models.NewData(
+			models.NewMetaData("simple", dt),
+			[]byte(""),
+		)
+		require.Nil(t, err, err)
+
 		err = obtainedData.UnmarshalBinary(resp.Body())
 		require.Nil(t, err, err)
 		require.Equal(t, testFile, obtainedData)
@@ -156,17 +177,15 @@ func TestNewStorageServer(t *testing.T) {
 	t.Run("AddSame", func(t *testing.T) {
 		content := randomContent()
 		var testFile = models.NewSimpleData(
-			models.MetaData{
-				Title:    "test",
-				DataType: models.Audio,
-			},
+			models.NewMetaData("simple", models.Simple),
 			content,
 		)
 
 		var sameFile = models.NewSimpleData(
-			models.MetaData{
+			&models.MetaData{
 				Title:    "test",
-				DataType: models.Audio,
+				ID:       testFile.ID,
+				DataType: models.Simple,
 			},
 			content,
 		)
@@ -185,11 +204,10 @@ func TestNewStorageServer(t *testing.T) {
 		resp := fasthttp.AcquireResponse()
 		defer fasthttp.ReleaseResponse(resp)
 
-		client := &fasthttp.Client{}
 		err = client.Do(req, resp)
 		require.Nil(t, err, err)
 		assert.Equal(t, fasthttp.StatusCreated, resp.StatusCode())
-		assert.Equal(t, string(resp.Body()), testFile.ID().String())
+		assert.Equal(t, string(resp.Body()), testFile.Meta().GetID().String())
 
 		data, err = sameFile.MarshalBinary()
 		require.Nil(t, err, err)

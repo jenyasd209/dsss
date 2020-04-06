@@ -2,7 +2,6 @@ package models
 
 import (
 	"encoding"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 )
@@ -46,7 +45,8 @@ var (
 	ErrorBadDataType       = errors.New("can't convert to DataType")
 	ErrorGetDataTypeFromID = errors.New("can't get data type from ID")
 	ErrorMetaDataIsNil     = errors.New("metadata is nil")
-	ErrorContentIsNil      = errors.New("metadata is nil")
+	ErrorContentIsNil      = errors.New("content is nil")
+	ErrorBadHexID          = errors.New("hexID is bad")
 )
 
 type Data interface {
@@ -60,7 +60,7 @@ type Data interface {
 type ID []byte
 
 func (id ID) String() string {
-	return hex.EncodeToString(id)
+	return string(id)
 }
 
 func NewMetaData(title string, dataType DataType) *MetaData {

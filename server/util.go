@@ -11,10 +11,19 @@ import (
 func dataTypeFromJSON(j []byte) (models.DataType, error) {
 	value, err := jsonValue(j, "data_type")
 	if err != nil {
-		return 0, err
+		return models.Unknown, err
 	}
 
 	return models.ConvertToDataType(value)
+}
+
+func badRequest(resp *fasthttp.Response, body []byte) {
+	makeResponse(
+		resp,
+		fasthttp.StatusBadRequest,
+		map[string]string{"Content-Type": "text/plain"},
+		body,
+	)
 }
 
 func makeResponse(resp *fasthttp.Response, statusCode int, headerArgs map[string]string, body []byte) {

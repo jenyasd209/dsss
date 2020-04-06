@@ -173,13 +173,3 @@ func TestConvertToDataType(t *testing.T) {
 	dt, err = ConvertToDataType("sdfs")
 	require.Equal(t, ErrorBadDataType, err)
 }
-
-func TestDataTypeFromKey(t *testing.T) {
-	expectedVideoData, err := NewData(NewMetaData("video", Video), content)
-	assert.Nil(t, err, err)
-
-	dt, err := DataTypeFromID(expectedVideoData.Meta().GetID())
-	require.Nil(t, err, err)
-
-	assert.Equal(t, expectedVideoData.Meta().GetType(), dt)
-}

@@ -2,6 +2,7 @@ package models
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"log"
 	"strconv"
 )
@@ -40,7 +41,13 @@ func intToDataType(i int) (DataType, error) {
 	return DataType(i), nil
 }
 
-func DataTypeFromID(id []byte) (DataType, error) {
+func DataTypeFromID(hexID []byte) (DataType, error) {
+	id := make([]byte, hex.DecodedLen(len(hexID)))
+	_, err := hex.Decode(id, hexID)
+	if err != nil {
+		return Unknown, ErrorBadHexID
+	}
+
 	prefix := id[:len(id)-32]
 
 	dt, ok := DataTypeMap[Prefix(prefix)]
@@ -64,5 +71,10 @@ func newID(dataType DataType) ID {
 func composeID(uuid []byte, dataType DataType) ID {
 	prefix := []byte(DataPrefixMap[dataType])
 
-	return append(prefix, uuid...)
+	id := append(prefix, uuid...)
+
+	hexID := make([]byte, hex.EncodedLen(len(id)))
+	hex.Encode(hexID, id)
+
+	return hexID
 }
