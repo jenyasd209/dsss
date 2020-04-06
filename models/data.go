@@ -2,15 +2,17 @@ package models
 
 import (
 	"encoding"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 )
 
+type Content []byte
+
 type DataType uint8
 
 const (
-	Simple DataType = iota
+	Unknown DataType = iota
+	Simple
 	JSON
 	Audio
 	Video
@@ -42,26 +44,17 @@ var DataTypeMap = map[Prefix]DataType{
 var (
 	ErrorBadDataType       = errors.New("can't convert to DataType")
 	ErrorGetDataTypeFromID = errors.New("can't get data type from ID")
+	ErrorMetaDataIsNil     = errors.New("metadata is nil")
+	ErrorContentIsNil      = errors.New("content is nil")
+	ErrorBadHexID          = errors.New("hexID is bad")
 )
-
-type Hash32 [32]byte
-
-func (h Hash32) String() string {
-	return hex.EncodeToString(h[:])
-}
-
-func (h Hash32) IsEmpty() bool {
-	return h == Hash32{}
-}
 
 type Data interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 
-	ID() ID
-	Type() DataType
-	Body() Content
-	Title() string
+	Meta() *MetaData
+	Body() *Content
 }
 
 type ID []byte
@@ -70,24 +63,37 @@ func (id ID) String() string {
 	return string(id)
 }
 
+func NewMetaData(title string, dataType DataType) *MetaData {
+	return &MetaData{
+		Title:    title,
+		ID:       newID(dataType),
+		DataType: dataType,
+	}
+}
+
 type MetaData struct {
 	Title    string   `json:"title"`
 	ID       ID       `json:"id"`
 	DataType DataType `json:"data_type"`
 }
 
-type Content []byte
+func (m *MetaData) GetID() ID {
+	return m.ID
+}
 
-func NewSimpleData(metadata MetaData, content Content) (sd *simpleData) {
-	sd = &simpleData{
-		MetaData: metadata,
+func (m *MetaData) GetType() DataType {
+	return m.DataType
+}
+
+func (m *MetaData) GetTitle() string {
+	return m.Title
+}
+
+func NewSimpleData(metadata *MetaData, content Content) *simpleData {
+	return &simpleData{
+		MetaData: *metadata,
 		Content:  content,
 	}
-
-	h := hash(sd.Content)
-	sd.MetaData.ID = composeID(h, sd.MetaData.DataType)
-
-	return
 }
 
 type simpleData struct {
@@ -103,32 +109,19 @@ func (sd *simpleData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, &sd)
 }
 
-func (sd *simpleData) ID() ID {
-	return sd.MetaData.ID
+func (sd *simpleData) Meta() *MetaData {
+	return &sd.MetaData
 }
 
-func (sd *simpleData) Type() DataType {
-	return sd.MetaData.DataType
+func (sd *simpleData) Body() *Content {
+	return &sd.Content
 }
 
-func (sd *simpleData) Body() Content {
-	return sd.Content
-}
-
-func (sd *simpleData) Title() string {
-	return sd.MetaData.Title
-}
-
-func NewJSONData(metadata MetaData, content Content) (jd *jsonData) {
-	jd = &jsonData{
-		MetaData: metadata,
+func NewJSONData(metadata *MetaData, content Content) *jsonData {
+	return &jsonData{
+		MetaData: *metadata,
 		Content:  content,
 	}
-
-	h := hash(jd.Content)
-	jd.MetaData.ID = composeID(h, jd.DataType)
-
-	return
 }
 
 type jsonData struct {
@@ -144,32 +137,19 @@ func (jd *jsonData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, jd)
 }
 
-func (jd *jsonData) ID() ID {
-	return jd.MetaData.ID
+func (jd *jsonData) Meta() *MetaData {
+	return &jd.MetaData
 }
 
-func (jd *jsonData) Type() DataType {
-	return jd.MetaData.DataType
+func (jd *jsonData) Body() *Content {
+	return &jd.Content
 }
 
-func (jd *jsonData) Body() Content {
-	return jd.Content
-}
-
-func (jd *jsonData) Title() string {
-	return jd.MetaData.Title
-}
-
-func NewAudioData(metadata MetaData, content Content) (ad *audioData) {
-	ad = &audioData{
-		MetaData: metadata,
+func NewAudioData(metadata *MetaData, content Content) *audioData {
+	return &audioData{
+		MetaData: *metadata,
 		Content:  content,
 	}
-
-	h := hash(ad.Content)
-	ad.MetaData.ID = composeID(h, ad.DataType)
-
-	return ad
 }
 
 type audioData struct {
@@ -185,37 +165,24 @@ func (ad *audioData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, ad)
 }
 
-func (ad *audioData) ID() ID {
-	return ad.MetaData.ID
+func (ad *audioData) Meta() *MetaData {
+	return &ad.MetaData
 }
 
-func (ad *audioData) Type() DataType {
-	return ad.MetaData.DataType
+func (ad *audioData) Body() *Content {
+	return &ad.Content
 }
 
-func (ad *audioData) Body() Content {
-	return ad.Content
-}
-
-func (ad *audioData) Title() string {
-	return ad.MetaData.Title
-}
-
-func NewVideoData(metadata MetaData, frames Content) (vd *videoData) {
-	vd = &videoData{
-		MetaData: metadata,
-		Frames:   frames,
+func NewVideoData(metadata *MetaData, content Content) *videoData {
+	return &videoData{
+		MetaData: *metadata,
+		Content:  content,
 	}
-
-	h := hash(vd.Frames)
-	vd.MetaData.ID = composeID(h, vd.DataType)
-
-	return
 }
 
 type videoData struct {
 	MetaData
-	Frames Content `json:"frames"`
+	Content Content `json:"content"`
 }
 
 func (vd *videoData) MarshalBinary() (data []byte, err error) {
@@ -226,18 +193,46 @@ func (vd *videoData) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, vd)
 }
 
-func (vd *videoData) ID() ID {
-	return vd.MetaData.ID
+func (vd *videoData) Meta() *MetaData {
+	return &vd.MetaData
 }
 
-func (vd *videoData) Type() DataType {
-	return vd.MetaData.DataType
+func (vd *videoData) Body() *Content {
+	return &vd.Content
 }
 
-func (vd *videoData) Body() Content {
-	return vd.Frames
-}
+//NewData creates new Data. If some parameter is nil than Data will be nil too
+func NewData(metaData *MetaData, content Content) (Data, error) {
+	if metaData == nil {
+		return nil, ErrorMetaDataIsNil
+	}
 
-func (vd *videoData) Title() string {
-	return vd.MetaData.Title
+	if content == nil {
+		return nil, ErrorContentIsNil
+	}
+
+	switch metaData.DataType {
+	case Simple:
+		return NewSimpleData(
+			metaData,
+			content,
+		), nil
+	case JSON:
+		return NewJSONData(
+			metaData,
+			content,
+		), nil
+	case Audio:
+		return NewAudioData(
+			metaData,
+			content,
+		), nil
+	case Video:
+		return NewVideoData(
+			metaData,
+			content,
+		), nil
+	default:
+		return nil, errors.New("dataType is wrong")
+	}
 }

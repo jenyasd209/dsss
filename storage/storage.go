@@ -2,9 +2,8 @@ package storage
 
 import (
 	"github.com/dgraph-io/badger"
-	"github.com/pkg/errors"
-
 	"github.com/iorhachovyevhen/dsss/models"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -15,7 +14,7 @@ var (
 
 type DataKeeper interface {
 	Add(data models.Data) (models.ID, error)
-	Read(key []byte) (models.Data, error)
+	Read(key []byte, data models.Data) error
 	Delete(key []byte) error
 
 	Close() error
@@ -51,39 +50,35 @@ func openDB(opt badger.Options) *badger.DB {
 }
 
 func (s *Storage) Add(data models.Data) (models.ID, error) {
-	_, err := s.Read(data.ID())
-	if err == nil {
+	if s.Exist(data.Meta().GetID()) {
 		return nil, ErrAlreadyUsedID
 	}
 
-	err = s.db.Update(func(txn *badger.Txn) error {
+	err := s.db.Update(func(txn *badger.Txn) error {
 		val, err := data.MarshalBinary()
 		if err != nil {
 			return err
 		}
 
-		return txn.Set(data.ID(), val)
+		return txn.Set(data.Meta().GetID(), val)
 	})
 
 	if err != nil {
 		return nil, errors.New("writing data finished with error: " + err.Error())
 	}
 
-	return data.ID(), nil
+	return data.Meta().GetID(), nil
 }
 
-func (s *Storage) Read(key []byte) (models.Data, error) {
-	dt, err := models.DataTypeFromID(key)
-	if err != nil {
-		return nil, err
-	}
-
-	data := models.NewEmptyData(dt)
-
-	err = s.db.View(func(txn *badger.Txn) error {
+func (s *Storage) Read(key []byte, data models.Data) error {
+	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return err
+		}
+
+		if item.IsDeletedOrExpired() {
+			return errors.New("Item is deleted or expired")
 		}
 
 		err = item.Value(func(val []byte) error {
@@ -95,21 +90,20 @@ func (s *Storage) Read(key []byte) (models.Data, error) {
 
 	if err != nil {
 		if err == badger.ErrKeyNotFound {
-			return nil, ErrIDNotFound
+			return ErrIDNotFound
 		}
-		return nil, errors.New("reading finished with error: " + err.Error())
+		return errors.New("reading finished with error: " + err.Error())
 	}
 
-	return data, nil
+	return nil
 }
 
 func (s *Storage) Delete(key []byte) error {
-	_, err := s.Read(key)
-	if err == ErrIDNotFound {
-		return err
+	if !s.Exist(key) {
+		return ErrIDNotFound
 	}
 
-	err = s.db.Update(func(txn *badger.Txn) error {
+	err := s.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete(key)
 	})
 	if err != nil {
@@ -117,6 +111,25 @@ func (s *Storage) Delete(key []byte) error {
 	}
 
 	return nil
+}
+
+func (s *Storage) Exist(key []byte) bool {
+	txn := s.db.NewTransaction(false)
+	defer txn.Discard()
+
+	item, err := txn.Get(key)
+	if err != nil {
+		if err == badger.ErrKeyNotFound {
+			return false
+		}
+		return true
+	}
+
+	if item.IsDeletedOrExpired() {
+		return false
+	}
+
+	return true
 }
 
 func (s *Storage) Close() error {

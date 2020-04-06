@@ -1,7 +1,6 @@
 package models
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -9,22 +8,49 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var content = []byte("test content")
+var content = Content([]byte("test content"))
 
-var (
-	expectedSimpleData = NewData(Simple, "text", content)
-	expectedJsonData   = NewData(JSON, "json", content)
-	expectedAudioData  = NewData(Audio, "audio", content)
-	expectedVideoData  = NewData(Video, "video", content)
-)
+func TestDataTypeFromID(t *testing.T) {
+	expectedSimpleData, err := NewData(NewMetaData("test", Simple), content)
+	assert.Nil(t, err, err)
 
-func TestSimpleData_Hash(t *testing.T) {
-	expectedHash := sha256.Sum256(expectedSimpleData.Body())
-	h := composeID(expectedHash, expectedSimpleData.Type())
-	assert.Equal(t, string(h), expectedSimpleData.ID().String())
+	dt, err := DataTypeFromID(expectedSimpleData.Meta().GetID())
+	assert.Nil(t, err, err)
+	assert.Equal(t, Simple, dt)
+
+	expectedSimpleData, err = NewData(NewMetaData("test", JSON), content)
+	assert.Nil(t, err, err)
+
+	dt, err = DataTypeFromID(expectedSimpleData.Meta().GetID())
+	assert.Nil(t, err, err)
+	assert.Equal(t, JSON, dt)
+
+	expectedSimpleData, err = NewData(NewMetaData("test", Audio), content)
+	assert.Nil(t, err, err)
+
+	dt, err = DataTypeFromID(expectedSimpleData.Meta().GetID())
+	assert.Nil(t, err, err)
+	assert.Equal(t, Audio, dt)
+
+	expectedSimpleData, err = NewData(NewMetaData("test", Video), content)
+	assert.Nil(t, err, err)
+
+	dt, err = DataTypeFromID(expectedSimpleData.Meta().GetID())
+	assert.Nil(t, err, err)
+	assert.Equal(t, Video, dt)
+}
+
+func TestNewData(t *testing.T) {
+	expectedSimpleData, err := NewData(NewMetaData("simple", Simple), content)
+	assert.Nil(t, err, err)
+	assert.Equal(t, "simple", expectedSimpleData.Meta().GetTitle())
+	assert.Equal(t, content, *expectedSimpleData.Body())
 }
 
 func TestSimpleData_MarshalBinary(t *testing.T) {
+	expectedSimpleData, err := NewData(NewMetaData("simple", Simple), content)
+	assert.Nil(t, err, err)
+
 	expectedJSON, err := json.Marshal(expectedSimpleData)
 	assert.Nil(t, err)
 
@@ -34,6 +60,9 @@ func TestSimpleData_MarshalBinary(t *testing.T) {
 }
 
 func TestSimpleData_UnmarshalBinary(t *testing.T) {
+	expectedSimpleData, err := NewData(NewMetaData("simple", Simple), content)
+	assert.Nil(t, err, err)
+
 	data := &simpleData{}
 
 	bytes, err := expectedSimpleData.MarshalBinary()
@@ -45,6 +74,9 @@ func TestSimpleData_UnmarshalBinary(t *testing.T) {
 }
 
 func TestJsonData_MarshalBinary(t *testing.T) {
+	expectedJsonData, err := NewData(NewMetaData("json", JSON), content)
+	assert.Nil(t, err, err)
+
 	expectedJSON, err := json.Marshal(expectedJsonData)
 	assert.Nil(t, err)
 
@@ -54,6 +86,8 @@ func TestJsonData_MarshalBinary(t *testing.T) {
 }
 
 func TestJsonData_UnmarshalBinary(t *testing.T) {
+	expectedJsonData, err := NewData(NewMetaData("json", JSON), content)
+	assert.Nil(t, err, err)
 	data := &jsonData{}
 
 	bytes, err := expectedJsonData.MarshalBinary()
@@ -64,13 +98,10 @@ func TestJsonData_UnmarshalBinary(t *testing.T) {
 	assert.Equal(t, expectedJsonData, data)
 }
 
-func TestAudioData_Hash(t *testing.T) {
-	expectedHash := sha256.Sum256(expectedAudioData.Body())
-	h := composeID(expectedHash, expectedAudioData.Type())
-	assert.Equal(t, string(h), expectedAudioData.ID().String())
-}
-
 func TestAudioData_MarshalBinary(t *testing.T) {
+	expectedAudioData, err := NewData(NewMetaData("audio", Audio), content)
+	assert.Nil(t, err, err)
+
 	expected, err := json.Marshal(expectedAudioData)
 	assert.Nil(t, err)
 
@@ -80,6 +111,8 @@ func TestAudioData_MarshalBinary(t *testing.T) {
 }
 
 func TestAudioData_UnmarshalBinary(t *testing.T) {
+	expectedAudioData, err := NewData(NewMetaData("audio", Audio), content)
+	assert.Nil(t, err, err)
 	data := &audioData{}
 
 	bytes, err := expectedAudioData.MarshalBinary()
@@ -90,13 +123,10 @@ func TestAudioData_UnmarshalBinary(t *testing.T) {
 	assert.Equal(t, expectedAudioData, data)
 }
 
-func TestVideoData_Hash(t *testing.T) {
-	expectedHash := sha256.Sum256(expectedVideoData.Body())
-	h := composeID(expectedHash, expectedVideoData.Type())
-	assert.Equal(t, h.String(), expectedVideoData.ID().String())
-}
-
 func TestVideoData_MarshalBinary(t *testing.T) {
+	expectedVideoData, err := NewData(NewMetaData("video", Video), content)
+	assert.Nil(t, err, err)
+
 	expected, err := json.Marshal(expectedVideoData)
 	assert.Nil(t, err)
 
@@ -106,6 +136,9 @@ func TestVideoData_MarshalBinary(t *testing.T) {
 }
 
 func TestVideoData_UnmarshalBinary(t *testing.T) {
+	expectedVideoData, err := NewData(NewMetaData("video", Video), content)
+	assert.Nil(t, err, err)
+
 	data := &videoData{}
 
 	bytes, err := expectedVideoData.MarshalBinary()
@@ -117,10 +150,10 @@ func TestVideoData_UnmarshalBinary(t *testing.T) {
 }
 
 func TestConvertToDataType(t *testing.T) {
-	s := "2"
-	f := 2.0
-	ip := 2
-	in := -2
+	s := "3"
+	f := 3.0
+	ip := 3
+	in := -3
 
 	dt, err := ConvertToDataType(s)
 	require.Nil(t, err, err)
@@ -139,15 +172,4 @@ func TestConvertToDataType(t *testing.T) {
 
 	dt, err = ConvertToDataType("sdfs")
 	require.Equal(t, ErrorBadDataType, err)
-}
-
-func TestDataTypeFromKey(t *testing.T) {
-	expectedHash := sha256.Sum256(expectedVideoData.Body())
-	id := composeID(expectedHash, expectedVideoData.Type())
-	assert.Equal(t, id.String(), expectedVideoData.ID().String())
-
-	dt, err := DataTypeFromID(expectedVideoData.ID())
-	require.Nil(t, err, err)
-
-	assert.Equal(t, expectedVideoData.Type(), dt)
 }
