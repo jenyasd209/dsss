@@ -50,7 +50,7 @@ func openDB(opt badger.Options) *badger.DB {
 }
 
 func (s *Storage) Add(data models.Data) (models.ID, error) {
-	if s.Exist(data.ID()) {
+	if s.Exist(data.Meta().GetID()) {
 		return nil, ErrAlreadyUsedID
 	}
 
@@ -60,14 +60,14 @@ func (s *Storage) Add(data models.Data) (models.ID, error) {
 			return err
 		}
 
-		return txn.Set(data.ID(), val)
+		return txn.Set(data.Meta().GetID(), val)
 	})
 
 	if err != nil {
 		return nil, errors.New("writing data finished with error: " + err.Error())
 	}
 
-	return data.ID(), nil
+	return data.Meta().GetID(), nil
 }
 
 func (s *Storage) Read(key []byte, data models.Data) error {
