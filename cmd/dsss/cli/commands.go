@@ -125,9 +125,9 @@ var getCmd = &cli.Command{
 			return err
 		}
 
-		p := path.Join(dst, file.Title())
+		p := path.Join(dst, file.Meta().GetTitle())
 
-		err = writeFile(p, file.Body())
+		err = writeFile(p, *file.Body())
 		if err != nil {
 			return err
 		}
