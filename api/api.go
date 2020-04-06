@@ -34,7 +34,14 @@ func (a *api) Files() *fileRoute {
 
 func (f *fileRoute) Add(fileName string, content []byte) (models.ID, error) {
 	dt := DataTypeFromFilename(fileName)
-	data := models.NewData(dt, fileName, content)
+
+	data, err := models.NewData(
+		models.NewMetaData(fileName, dt),
+		content,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	body, err := data.MarshalBinary()
 	if err != nil {
@@ -70,7 +77,14 @@ func (f *fileRoute) Get(key models.ID) (models.Data, error) {
 		return nil, err
 	}
 
-	obj := models.NewEmptyData(dt)
+	obj, err := models.NewData(
+		models.NewMetaData("", dt),
+		[]byte(""),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	err = obj.UnmarshalBinary(resp.Body())
 	if err != nil {
 		return nil, err

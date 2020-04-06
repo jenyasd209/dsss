@@ -4,6 +4,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"math/rand"
+	"net/http"
 	"testing"
 	"time"
 
@@ -16,12 +17,16 @@ var route = "http://localhost:8080/file"
 
 func TestNewStorageServer(t *testing.T) {
 	s := NewStorageServer()
-	go func() {
-		if err := s.Start(); err != nil {
-			panic(err)
-		}
-	}()
-	defer s.Shutdown()
+
+	_, err := http.Get("http://localhost:8080")
+	if err != nil {
+		go func() {
+			if err := s.Start(); err != nil {
+				panic(err)
+			}
+		}()
+		defer s.Shutdown()
+	}
 
 	client := &fasthttp.Client{}
 	time.Sleep(time.Second)
